@@ -110,18 +110,14 @@ main (int argc, char *argv[])
 		CalculoClientes instanciaCalculoClientes = new CalculoClientes (
 			DEFAULT_TASA_CENTRALES, REQUISITO_TASA_LLAM
 		);
-		uint32_t candidatoNumClientes = 0;
 		uint32_t maxNumClientes = CalculoClientes.GetDefault ();
 		// Ejecucion del algoritmo de calculo de clientes
-		while (maxNumClientes != candidatoNumClientes) {
+		while (! instanciaCalculoClientes.FoundValue ()) {
 			if (cumpleRequisitos ()) {
 				maxNumClientes = instanciaCalculoClientes.GetValue ();
 			} else {
 				// Incumple nodos, volver al valor anterior
 				maxNumClientes = instanciaCalculoClientes.Reset ();
-				if (instanciaCalculoClientes.FoundValue ()) {
-					break;
-				}
 			}
 		}
 	}
