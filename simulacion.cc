@@ -48,6 +48,12 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 #define IC_PORCEN 95
 #define IC_PONDERACION 2.2622
 
+struct DATOS {
+};
+
+bool
+cumpleRequisitos ();
+
 void
 simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnlace, 
 	    Ptr<ExponentialRandomVariable> retEnlace, Ptr<ExponentialRandomVariable> onTime, 
@@ -93,7 +99,16 @@ main (int argc, char *argv[])
   cmd.AddValue("nClientesPorCentral","numero de nodos por central",nClientesPorCentral);
   cmd.Parse (argc, argv);
 
+  /*
+  // Graficas:
+  // - Calculo de numero de nodos:
+  //   * Porcent llam OK vs numero de nodos
+  //   * Retardo minimo vs numero de nodos
+  //   * Tasa minima vs numero de nodos
+  // - Calculo de parametros:
+  //   * TODO
 	Gnuplot graficas[NUM_GRAFICAS];
+  Gnuplot2dDataset curvas[NUM_GRAFICAS];
 	std::ostringstream tituloGraficas[NUM_GRAFICAS];
 
 	if (calcularNodos) {
@@ -118,7 +133,20 @@ main (int argc, char *argv[])
 		// Ejecucion del algoritmo de calculo de clientes
 		while (! instanciaCalculoClientes.FoundValue ()) {
 			NS_LOG_DEBUG ("Iteracion: " << maxNumClientes << " clientes");
-			if (cumpleRequisitos ()) {
+      // TODO Obtener punto e IC segun numero de nodos analizado
+      Average<double> porcentCumplimLlam;
+      double IC[NUM_GRAFICAS];
+      for (int simul = 0; simul < IC_SIMULACIONES_POR_PUNTO; simul++) {
+        DATOS resultadoSimulacion = simulacion (maxNumClientes, ...);
+        porcentCumplimLlam.Update (resultadoSimulacion.porcentCumplimientoLlam);
+        // TODO: Grafica retardos?
+        // TODO: Grafica tasa?
+      }
+      IC[GRAFICA_NODOS] = IC_PONDERACION * sqrt (porcentCumplimLlam.Var () / IC_SIMULACIONES_POR_PUNTO);
+      // Aniadir punto a la grafica
+      curvas[GRAFICA_NODOS].Add (porcentCumplimLlam.Mean (), maxNumClientes, IC[GRAFICA_NODOS]);
+      // El algoritmo se encarga de encontrar un valor optimo de nClientesPorCentral
+			if (cumpleRequisitos (resultadoSimulacion)) {
 				NS_LOG_DEBUG ("Cumplimiento de requisitos con " << maxNumClientes << " clientes");
 				maxNumClientes = instanciaCalculoClientes.GetValue ();
 			} else {
@@ -127,11 +155,19 @@ main (int argc, char *argv[])
 				maxNumClientes = instanciaCalculoClientes.ResetValue ();
 			}
 		}
+    graficas[GRAFICA_NODOS].AddDataset (curvas [GRAFICA_NODOS]);
 	}
-  simulacion ();
+  */
 
   // Siempre finaliza correctamente
   return 0;
+}
+
+bool
+cumpleRequisitos ()
+{
+  // TODO
+  return false;
 }
 
 void
