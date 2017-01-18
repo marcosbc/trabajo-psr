@@ -96,7 +96,7 @@ main (int argc, char *argv[])
 		// Modo de calculo de nodos: Obtener el numero de nodos maximo
 		// Configurar parametros de entrada de la grafica
 		tituloGraficas[GRAFICA_NODOS]
-			<< "Numero de nodos total en centrales (distribuidos equitativamente)
+			<< "Numero de nodos total en centrales (distribuidos equitativamente)"
 			<< "(intervalo confianza: " << IC_PORCEN << "%)\\n"
 			<< parametrosEntrada.str ();
 		graficas[GRAFICA_NODOS].SetTitle (tituloGraficas[GRAFICA_NODOS]);
