@@ -17,7 +17,7 @@
 #include <ns3/ipv4-global-routing-helper.h>
 #include <ns3/random-variable-stream.h>
 #include <ns3/gnuplot.h>
-#include "calculoNumClientes.h"
+//#include "calculoNumClientes.h"
 
 using namespace ns3;
 
@@ -47,7 +47,9 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 #define IC_PONDERACION 2.2622
 
 void
-simulacion ();
+simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnlace, 
+	    Ptr<ExponentialRandomVariable> retEnlace, Ptr<ExponentialRandomVariable> onTime, 
+	    Ptr<ExponentialRandomVariable> offTime, DataRate dataRate, uint32_t sizePkt);
 
 int
 main (int argc, char *argv[])
@@ -55,23 +57,23 @@ main (int argc, char *argv[])
   GlobalValue::Bind ("ChecksumEnabled", BooleanValue (true));
   Time::SetResolution (Time::US);
 
-	// Modo de simulacion
-	bool calcularNodos = false;
+  // Modo de simulacion
+  bool calcularNodos = false;
 
   // Configuracion de requisitos y especificaciones
-  DataRate tasaLlamMinima = REQUISITO_TASA_LLAM;
-  Time retardoMaximo = REQUISITO_RETARDO_MAX;
+  DataRate tasaLlamMinima =DataRate( REQUISITO_TASA_LLAM);
+  Time retardoMaximo = Time(REQUISITO_RETARDO_MAX);
   double porcenLlamadasCorrectasMin = REQUISITO_PORCEN_LLAM_CORRECTAS;
 
   // Configuracion de escenario
   uint32_t nClientesPorCentral = DEFAULT_NUM_CLIENTES; 
   
   // Configuracion de clientes
-  DataRate conexClientesMedia = DEFAULT_CLIENTES_CONEXION;
-  Time retardoClientesMedia = DEFAULT_CLIENTES_RETARDO;
+  DataRate conexClientesMedia =DataRate (DEFAULT_CLIENTES_CONEXION);
+  Time retardoClientesMedia = Time(DEFAULT_CLIENTES_RETARDO);
   uint32_t probErrorBitClientesMedia = DEFAULT_CLIENTES_PERROR_BIT;
-  Time duracionLlamClientesMedia = DEFAULT_CLIENTES_DURACION_LLAMADA;
-  Time duracionSilencioClientesMedia = DEFAULT_CLIENTES_SILENCIO;
+  Time duracionLlamClientesMedia = Time(DEFAULT_CLIENTES_DURACION_LLAMADA);
+  Time duracionSilencioClientesMedia =Time(DEFAULT_CLIENTES_SILENCIO);
   DataRate velocidad = DataRate ("1Mbps");
   Ptr<ExponentialRandomVariable> velEnlace = CreateObject<ExponentialRandomVariable> ();
   velEnlace -> SetAttribute("Mean", DoubleValue (double(velocidad.GetBitRate())));
@@ -88,8 +90,8 @@ main (int argc, char *argv[])
   cmd.AddValue("duracionSilencioClientesMedia", "duacion media de silencios en los clientes", duracionSilencioClientesMedia);
   cmd.AddValue("nClientesPorCentral","numero de nodos por central",nClientesPorCentral);
   cmd.Parse (argc, argv);
-  
-	Gnuplot graficas[NUM_GRAFICAS];
+  /*
+ 	Gnuplot graficas[NUM_GRAFICAS];
 	std::ostringstream tituloGraficas[NUM_GRAFICAS];
 
 	if (calcularNodos) {
@@ -120,15 +122,17 @@ main (int argc, char *argv[])
 				maxNumClientes = instanciaCalculoClientes.Reset ();
 			}
 		}
-	}
+		}
   simulacion ();
-
+*/
   // Siempre finaliza correctamente
   return 0;
 }
 
 void
-simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnlace,  Ptr<ExponentialRandomVariable> retEnlace) {
+simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnlace, 
+	    Ptr<ExponentialRandomVariable> retEnlace, Ptr<ExponentialRandomVariable> onTime, 
+	    Ptr<ExponentialRandomVariable> offTime, DataRate dataRate, uint32_t sizePkt) {
 
   NodeContainer p2pNodes1;
   p2pNodes1.Create (nClientesPorCentral+1);//Creamos todos los nodos junto con las centrales
@@ -165,8 +169,8 @@ simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnla
   //Agregacion de los atributos a los enlaces entre nodos y centrales
   for(uint32_t device=0; device<nClientesPorCentral;device++)
   {
-    pointToPointNodos.SetDeviceAttribute ("DataRate",DataRateValue(DataRate(uint64_t(velEnlace.GetValue()))));
-    pointToPointNodos.SetChannelAttribute ("Delay", TimeValue(Time(retEnlace.GetValue())));
+    pointToPointNodos.SetDeviceAttribute ("DataRate",DataRateValue(DataRate(uint64_t(velEnlace->GetValue()))));
+    pointToPointNodos.SetChannelAttribute ("Delay", TimeValue(Time(retEnlace->GetValue())));
     DeviceCentral1[device]= pointToPointNodos.Install (central1[device]);
     DeviceCentral2[device]= pointToPointNodos.Install (central2[device]);
   }
@@ -209,10 +213,10 @@ simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnla
 	  direccionIP1 << "10."<< ip2 << "." << ip1 << ".0" ;
 	  ip1++;
 	}
-      direccionIP.str();
-      address.SetBase (direccionIP1.str(), "255.255.255.0");
+      
+      address.SetBase (direccionIP1.str().c_str(), "255.255.255.0");
       Interfacesnodos1[nclientes] = address.Assign ( DeviceCentral1[nclientes]);
-      address.SetBase (direccionIP2.str(), "255.255.255.0");
+      address.SetBase (direccionIP2.str().c_str(), "255.255.255.0");
       Interfacesnodos2[nclientes] = address.Assign ( DeviceCentral2[nclientes]);
     }
   // Calculamos las rutas del escenario. Con este comando, los
@@ -221,29 +225,63 @@ simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnla
   //     utilizar el primer nodo como ruta por defecto.
    Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
+    uint16_t port = 9;
+    PacketSinkHelper sink1 ("ns3::UdpSocketFactory",
+                         Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
+    PacketSinkHelper sink2 ("ns3::UdpSocketFactory",
+                         Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
+    
    for (uint32_t nclientes=0; nclientes<nClientesPorCentral; nclientes++)
      {
+       //Instalacion de sumideros
+        ApplicationContainer app1 = sink1.Install (central1[nclientes].Get (0));
+	ApplicationContainer app2 = sink2.Install (central2[nclientes].Get (0));
+
+	//Creacion de clientes
        OnOffHelper clientes1 ("ns3::UdpSocketFactory",
-			     Address (InetSocketAddress ( Interfacesnodos1[nclientes].GetAddress (0), port)));
-       OnOffHelper clientes2 ("ns3::UdpSocketFactory",
 			      Address (InetSocketAddress ( Interfacesnodos2[nclientes].GetAddress (0), port)));
+       //Valores de los clientes concectados a la central1
+       clientes1.SetAttribute("OnTime",PointerValue(onTime));
+       clientes1.SetAttribute("OffTime",PointerValue(offTime));
+       clientes1.SetAttribute("PacketSize",UintegerValue (sizePkt));
+       clientes1.SetAttribute("DataRate",DataRateValue(dataRate));
+       //para añadir el on/off a todos los nodos de la central1.
+       ApplicationContainer clientApps1 = clientes1.Install (central1[nclientes]);
+       OnOffHelper clientes2 ("ns3::UdpSocketFactory",
+			      Address (InetSocketAddress ( Interfacesnodos1[nclientes].GetAddress (0), port)));
+       //Valores de los clientes concectados a la central2
+       clientes2.SetAttribute("OnTime",PointerValue(onTime));
+       clientes2.SetAttribute("OffTime",PointerValue(offTime));
+       clientes2.SetAttribute("PacketSize",UintegerValue (sizePkt));
+       clientes2.SetAttribute("DataRate",DataRateValue(dataRate));
+       //para añadir el on/off a todos los nodos de la central2.
+       ApplicationContainer clientApps2 = clientes2.Install (central2[nclientes]);
      }
-  //Valores de los clientes concectados a la central1
+ 
+  /*
+   //Valores de los clientes concectados a la central1
    clientes1.SetAttribute("OnTime",PointerValue(onTime));
    clientes1.SetAttribute("OffTime",PointerValue(offTime));
    clientes1.SetAttribute("PacketSize",UintegerValue (sizePkt));
-   clientes1.SetAttribute("DataRate",DataRateValue(dataRate));
+   clientes1.SetAttribute("DataRate",DataRateValue(dataRate)); 
    //Valores de los clientes concectados a la central2
    clientes2.SetAttribute("OnTime",PointerValue(onTime));
    clientes2.SetAttribute("OffTime",PointerValue(offTime));
    clientes2.SetAttribute("PacketSize",UintegerValue (sizePkt));
    clientes2.SetAttribute("DataRate",DataRateValue(dataRate));
+   for(uint32_t nclientes=0; nclientes< nClientesPorCentral; nclientes++)
+     {
+       //para añadir el on/off a todos los nodos de la central1.
+       ApplicationContainer clientApps1 = clientes1.Install (central1[nclientes]);
+       //para añadir el on/off a todos los nodos de la central2.
+       ApplicationContainer clientApps2 = clientes2.Install (central2[nclientes]);
+     }
+   */
 
-    //para añadir el on/off a todos los nodos de la central1.
-  ApplicationContainer clientApps1 = clientes1.Install (csmaNodes);
- //para añadir el on/off a todos los nodos de la central2.
-  ApplicationContainer clientApps2 = clientes2.Install (csmaNodes);
-
+   clientApps1.Start (Seconds (2.0));
+   clientApps2.Start (Seconds (2.0));
+   clientApps1.Stop (Seconds (10.0));
+   clientApps2.Stop (Seconds (10.0));
    
 }
 
