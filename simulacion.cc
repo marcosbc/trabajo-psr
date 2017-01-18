@@ -9,14 +9,15 @@
  */
 
 #include <ns3/core-module.h>
-#include "ns3/network-module.h"
-#include "ns3/csma-module.h"
-#include "ns3/internet-module.h"
-#include "ns3/point-to-point-module.h"
-#include "ns3/applications-module.h"
-#include "ns3/ipv4-global-routing-helper.h"
-#include "ns3/random-variable-stream.h"
-#include "ns3/gnuplot.h"
+#include <ns3/network-module.h>
+#include <ns3/csma-module.h>
+#include <ns3/internet-module.h>
+#include <ns3/point-to-point-module.h>
+#include <ns3/applications-module.h>
+#include <ns3/ipv4-global-routing-helper.h>
+#include <ns3/random-variable-stream.h>
+#include <ns3/gnuplot.h>
+#include "calculoNumClientes.h"
 
 using namespace ns3;
 
@@ -38,6 +39,12 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 //retardo entre centrales
 #define DEFAULT_CENTRALES_RETARDO "10ms"
 
+#define NUM_GRAFICAS 3
+#define GRAFICA_NODOS 0
+
+#define IC_SIMULACIONES_POR_PUNTO 10
+#define IC_PORCEN 95
+#define IC_PONDERACION 2.2622
 
 void
 simulacion ();
@@ -48,14 +55,16 @@ main (int argc, char *argv[])
   GlobalValue::Bind ("ChecksumEnabled", BooleanValue (true));
   Time::SetResolution (Time::US);
 
+	// Modo de simulacion
+	bool calcularNodos = false;
+
   // Configuracion de requisitos y especificaciones
   DataRate tasaLlamMinima = REQUISITO_TASA_LLAM;
   Time retardoMaximo = REQUISITO_RETARDO_MAX;
   double porcenLlamadasCorrectasMin = REQUISITO_PORCEN_LLAM_CORRECTAS;
 
   // Configuracion de escenario
-  uint32_t nClientesPorCentral = DEFAULT_NUM_CLIENTES;
- 
+  uint32_t nClientesPorCentral = DEFAULT_NUM_CLIENTES; 
   
   // Configuracion de clientes
   DataRate conexClientesMedia = DEFAULT_CLIENTES_CONEXION;
@@ -68,9 +77,10 @@ main (int argc, char *argv[])
   velEnlace -> SetAttribute("Mean", DoubleValue (double(velocidad.GetBitRate())));
   Ptr<ExponentialRandomVariable> retEnlace = CreateObject<ExponentialRandomVariable> ();
   retEnlace -> SetAttribute("Mean", DoubleValue (0.002));//para meterle 2ms
-   
+
   // Obtener parametros por linea de comandos
   CommandLine cmd;
+  cmd.AddValue("calculoNodos", "Calculo de numero de nodos optimo por central", calcularNodos);
   cmd.AddValue("conexClientesMedia", "conexion media de clientes", conexClientesMedia);
   cmd.AddValue("retardoClientesMedia", "retardo medio en los clientes", retardoClientesMedia);
   cmd.AddValue("probErrorBitClientesMedia", "probabilidad de error de bit media en clientes", probErrorBitClientesMedia);
@@ -79,9 +89,43 @@ main (int argc, char *argv[])
   cmd.AddValue("nClientesPorCentral","numero de nodos por central",nClientesPorCentral);
   cmd.Parse (argc, argv);
   
+	Gnuplot graficas[NUM_GRAFICAS];
+	std::ostringstream tituloGraficas[NUM_GRAFICAS];
+
+	if (calcularNodos) {
+		// Modo de calculo de nodos: Obtener el numero de nodos maximo
+		// Configurar parametros de entrada de la grafica
+		tituloGraficas[GRAFICA_NODOS]
+			<< "Numero de nodos total en centrales (distribuidos equitativamente)
+			<< "(intervalo confianza: " << IC_PORCEN << "%)\\n"
+			<< parametrosEntrada.str ();
+		graficas[GRAFICA_NODOS].SetTitle (tituloGraficas[GRAFICA_NODOS]);
+		graficas[GRAFICA_NODOS].SetLegend (
+			// Eje X
+			"Numero de nodos total en las 2 centrales (distribuidos equitativamente)"
+			// Eje Y
+			"Porcentaje de mensajes de voz validos (%)"
+		);
+		// Configurar el algoritmo de calculo de numero de clientes
+		CalculoClientes instanciaCalculoClientes = new CalculoClientes (
+			DEFAULT_TASA_CENTRALES, REQUISITO_TASA_LLAM
+		);
+		uint32_t candidatoNumClientes = 0;
+		uint32_t maxNumClientes = CalculoClientes.GetDefault ();
+		// Ejecucion del algoritmo de calculo de clientes
+		while (maxNumClientes != candidatoNumClientes) {
+			if (cumpleRequisitos ()) {
+				maxNumClientes = instanciaCalculoClientes.GetValue ();
+			} else {
+				// Incumple nodos, volver al valor anterior
+				maxNumClientes = instanciaCalculoClientes.Reset ();
+				if (instanciaCalculoClientes.FoundValue ()) {
+					break;
+				}
+			}
+		}
+	}
   simulacion ();
-  
-  
 
   // Siempre finaliza correctamente
   return 0;
