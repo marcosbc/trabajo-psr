@@ -180,27 +180,74 @@ simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnla
   stack.Install (p2pNodes1);
   stack.Install (p2pNodes2);
 
+
+  // Asignamos direcciones a cada una de las interfaces
+  // Utilizamos dos rangos de direcciones diferentes:
   Ipv4AddressHelper address;
   address.SetBase ("10.254.0.0", "255.255.255.0");
   Ipv4InterfaceContainer Interfacescentrales;
   Interfacescentrales = address.Assign (DeviceCentrales);
 
+  std::ostringstream direccionIP1; 
+  std::ostringstream direccionIP2;
+  uint32_t ip1=0;
+  uint32_t ip2=0;
+  Ipv4InterfaceContainer Interfacesnodos1[nClientesPorCentral];
+  Ipv4InterfaceContainer Interfacesnodos2[nClientesPorCentral];
 
-  std::ostringstream rotulocurvagraficas; //creación del rotulo de las curvas de las graficas.
-  
-  for(uint32_t ip=1; ip < 255; ip++)
-    {
-      if(ip<254)
+  for(uint32_t nclientes=1; nclientes <= nClientesPorCentral; nclientes++)
+    {      
+      if(ip1<255)
 	{
-	  rotulocurvagraficas << "10.1." << ip << ".0" ;
+	  direccionIP1 << "10."<< ip2 << "." << ip1 << ".0" ;
+	  ip1++;
+	  direccionIP2 << "10."<< ip2 << "." << ip1 << ".0" ;
+	  ip1++;
 	}
       else
 	{
-	  
+	  ip1=0;
+	  ip2++;
+	  direccionIP1 << "10."<< ip2 << "." << ip1 << ".0" ;	  
+	  ip1++;
+	  direccionIP1 << "10."<< ip2 << "." << ip1 << ".0" ;
+	  ip1++;
 	}
-      rotulocurvagraficas.str();
+      direccionIP.str();
+      address.SetBase (direccionIP1.str(), "255.255.255.0");
+      Interfacesnodos1[nclientes] = address.Assign ( DeviceCentral1[nclientes]);
+      address.SetBase (direccionIP2.str(), "255.255.255.0");
+      Interfacesnodos2[nclientes] = address.Assign ( DeviceCentral2[nclientes]);
     }
-  
+  // Calculamos las rutas del escenario. Con este comando, los
+  //     nodos de la red de área local definen que para acceder
+  //     al nodo del otro extremo del enlace punto a punto deben
+  //     utilizar el primer nodo como ruta por defecto.
+   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
+   for (uint32_t nclientes=0; nclientes<nClientesPorCentral; nclientes++)
+     {
+       OnOffHelper clientes1 ("ns3::UdpSocketFactory",
+			     Address (InetSocketAddress ( Interfacesnodos1[nclientes].GetAddress (0), port)));
+       OnOffHelper clientes2 ("ns3::UdpSocketFactory",
+			      Address (InetSocketAddress ( Interfacesnodos2[nclientes].GetAddress (0), port)));
+     }
+  //Valores de los clientes concectados a la central1
+   clientes1.SetAttribute("OnTime",PointerValue(onTime));
+   clientes1.SetAttribute("OffTime",PointerValue(offTime));
+   clientes1.SetAttribute("PacketSize",UintegerValue (sizePkt));
+   clientes1.SetAttribute("DataRate",DataRateValue(dataRate));
+   //Valores de los clientes concectados a la central2
+   clientes2.SetAttribute("OnTime",PointerValue(onTime));
+   clientes2.SetAttribute("OffTime",PointerValue(offTime));
+   clientes2.SetAttribute("PacketSize",UintegerValue (sizePkt));
+   clientes2.SetAttribute("DataRate",DataRateValue(dataRate));
+
+    //para añadir el on/off a todos los nodos de la central1.
+  ApplicationContainer clientApps1 = clientes1.Install (csmaNodes);
+ //para añadir el on/off a todos los nodos de la central2.
+  ApplicationContainer clientApps2 = clientes2.Install (csmaNodes);
+
+   
 }
 
