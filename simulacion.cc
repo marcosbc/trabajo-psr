@@ -8,6 +8,8 @@
  * DESCRIPCION: TODO
  */
 
+#define TRABAJO
+
 #include <ns3/core-module.h>
 #include <ns3/network-module.h>
 #include <ns3/csma-module.h>
@@ -17,7 +19,7 @@
 #include <ns3/ipv4-global-routing-helper.h>
 #include <ns3/random-variable-stream.h>
 #include <ns3/gnuplot.h>
-//#include "calculoNumClientes.h"
+#include "CalculoClientes.h"
 
 using namespace ns3;
 
@@ -90,8 +92,8 @@ main (int argc, char *argv[])
   cmd.AddValue("duracionSilencioClientesMedia", "duacion media de silencios en los clientes", duracionSilencioClientesMedia);
   cmd.AddValue("nClientesPorCentral","numero de nodos por central",nClientesPorCentral);
   cmd.Parse (argc, argv);
-  /*
- 	Gnuplot graficas[NUM_GRAFICAS];
+
+	Gnuplot graficas[NUM_GRAFICAS];
 	std::ostringstream tituloGraficas[NUM_GRAFICAS];
 
 	if (calcularNodos) {
@@ -109,22 +111,25 @@ main (int argc, char *argv[])
 			"Porcentaje de mensajes de voz validos (%)"
 		);
 		// Configurar el algoritmo de calculo de numero de clientes
-		CalculoClientes instanciaCalculoClientes = new CalculoClientes (
+		CalculoClientes instanciaCalculoClientes (
 			DEFAULT_TASA_CENTRALES, REQUISITO_TASA_LLAM
 		);
-		uint32_t maxNumClientes = CalculoClientes.GetDefault ();
+		uint32_t maxNumClientes = instanciaCalculoClientes.GetInitialValue ();
 		// Ejecucion del algoritmo de calculo de clientes
 		while (! instanciaCalculoClientes.FoundValue ()) {
+			NS_LOG_DEBUG ("Iteracion: " << maxNumClientes << " clientes");
 			if (cumpleRequisitos ()) {
+				NS_LOG_DEBUG ("Cumplimiento de requisitos con " << maxNumClientes << " clientes");
 				maxNumClientes = instanciaCalculoClientes.GetValue ();
 			} else {
+				NS_LOG_DEBUG ("No se cumplen los requisitos con " << maxNumClientes << " clientes");
 				// Incumple nodos, volver al valor anterior
-				maxNumClientes = instanciaCalculoClientes.Reset ();
+				maxNumClientes = instanciaCalculoClientes.ResetValue ();
 			}
 		}
-		}
+	}
   simulacion ();
-*/
+
   // Siempre finaliza correctamente
   return 0;
 }
