@@ -19,59 +19,64 @@
 #include <ns3/ipv4-global-routing-helper.h>
 #include <ns3/random-variable-stream.h>
 #include <ns3/gnuplot.h>
-//#include "CalculoClientes.h"
+#include "CalculoClientes.h"
 #include "Observador.h"
 
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("Trabajo");
 
-// Requisitos
-#define REQUISITO_TASA_LLAM "64kbps"
-#define REQUISITO_RETARDO_MAX "140ms"
-#define REQUISITO_PORCEN_LLAM_CORRECTAS 99.99
-#define DEFAULT_NUM_CLIENTES 500
-#define DEFAULT_TASA_CENTRALES "1Mbps"
-//Como configuración por defecto del cliente se pretende que esté en condiciones normales.
-#define DEFAULT_CLIENTES_CONEXION "1Mbps"
-#define DEFAULT_CLIENTES_RETARDO 0.002 //2ms
+// Definicion de requisitos
+#define REQUISITO_LLAM_TASA "64kbps"
+#define REQUISITO_LLAM_RETARDO_MAX "140ms"
+#define REQUISITO_PORCEN_LLAM_CORRECTAS 99
+
+// Valores por defecto del escenario
+#define DEFAULT_CENTRALES_TASA "1Mbps" // Tasa de transmision entre centrales
+#define DEFAULT_CENTRALES_RETARDO "10ms" // Retardo entre centrales
+#define DEFAULT_CENTRALES_TAMCOLA 2
+
+// Valores por defecto del los clientes
+// Por defecto se supondra que esta en condiciones normales
+#define DEFAULT_NUM_CLIENTES 200
+#define DEFAULT_CLIENTES_TASA "1Mbps"
+#define DEFAULT_CLIENTES_RETARDO "2ms"
+#define DEFAULT_CLIENTES_DURACION_LLAMADA "5s"
+#define DEFAULT_CLIENTES_SILENCIO "20s"
 #define DEFAULT_CLIENTES_PERROR_BIT 0.00005
-#define DEFAULT_CLIENTES_DURACION_LLAMADA 0.2 //en segundos
-#define DEFAULT_CLIENTES_SILENCIO 0.8 //En segundos
 
-//retardo entre centrales
-#define DEFAULT_CENTRALES_RETARDO "10ms"
+// Configuracion del escenario
+#define NUM_CENTRALES 2
 
+// Configuracion de paquetes
+#define DEFAULT_TAM_PAQUETE 400
 
-#define TAM_PAQUETE 400
-#define TASA_ENVIO_CLIENTE "1Kbps"
+// Configuracion de graficas
+#define NUM_GRAFICAS 2
+#define GRAFICA_CUMPLIM 0
+#define GRAFICA_RETARDO 1
+// Constantes para el intervalo de confianza.
+#define IC_SIMULACIONES_POR_PUNTO 8
+#define IC_PORCENTAJE 95
+#define IC_PONDERACION 2.2622
 
-#define  TAMCOLA 2
-
-//Constantes para el intervalo de confianza.
-#define NUM_IC 10
-#define IC95 2.2622
-
-#define NUM_NODOS_INICIAL 5    //1
-#define NUM_NODOS_MAXIMOS 100 //500
-#define NUM_NODOS_PASO (NUM_NODOS_MAXIMOS-NUM_NODOS_INICIAL)/15 //PAra representar 15 puntos.
-
-#define TON_BAJA 0.3
-#define TON_PASO 0.3
-#define TON_MAXIMO 0.9
-
-/*
-struct DATOS {
+struct RESULTADOS_SIMULACION {
+  // Tanto por cien de llamadas consideradas validas
+  double porcenLlamValidas;
+  // Retardo medio de paquetes, en una estructura Time
+  Time retardoMedioLlam;
 };
 
 bool
-cumpleRequisitos ();
-*/
-void
-simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnlace, 
-	    Ptr<ExponentialRandomVariable> retEnlace, Ptr<ExponentialRandomVariable> onTime, 
-	    Ptr<ExponentialRandomVariable> offTime, DataRate tasaEnvioCliente, uint32_t sizePkt,
-	    uint32_t tamcola, double probErrorBitClientesMedia,double* retardos, double* correctos);
+cumpleRequisitos (double porcenLlamValidas);
+
+RESULTADOS_SIMULACION
+simulacion (
+  uint32_t numClientes,
+  Ptr<ExponentialRandomVariable> capacEnlace, Ptr<ExponentialRandomVariable> delayEnlace,
+  Ptr<ExponentialRandomVariable> ton, Ptr<ExponentialRandomVariable> toff,
+  double pError, DataRate tasaLlam, uint32_t sizePkt
+);
 
 int
 main (int argc, char *argv[])
@@ -79,232 +84,257 @@ main (int argc, char *argv[])
   GlobalValue::Bind ("ChecksumEnabled", BooleanValue (true));
   Time::SetResolution (Time::US);
 
+  // Contador de simulaciones, por motivos de debug
+  int contadorSimulaciones = 0;
+
+  // Numero de clientes maximo simulado, para representar la recta de requisitos
+  uint32_t numClientesMax = 0;
+
   // Modo de simulacion
-  // bool calcularNodos = false;
+  // TODO: Cambiar a false
+  bool modoCalculoClientes = true;
 
-  /*  // Configuracion de requisitos y especificaciones
-  DataRate tasaLlamMinima =DataRate( REQUISITO_TASA_LLAM);
-  Time retardoMaximo = Time(REQUISITO_RETARDO_MAX);
-  double porcenLlamadasCorrectasMin = REQUISITO_PORCEN_LLAM_CORRECTAS;
-  */
   // Configuracion de escenario
-  uint32_t nClientesPorCentral = DEFAULT_NUM_CLIENTES; 
-  
+  uint32_t nClientesPorCentral = DEFAULT_NUM_CLIENTES;
+
   // Configuracion de clientes
-  double retardoClientesMedia = DEFAULT_CLIENTES_RETARDO;
-  double probErrorBitClientesMedia = DEFAULT_CLIENTES_PERROR_BIT;
-  double duracionLlamClientesMedia = DEFAULT_CLIENTES_DURACION_LLAMADA;
-  double duracionSilencioClientesMedia =DEFAULT_CLIENTES_SILENCIO;
-  DataRate velocidadEnlacen = DataRate (DEFAULT_CLIENTES_CONEXION);
+  double clientesProbErrorBit = DEFAULT_CLIENTES_PERROR_BIT;
+  Time clientesDuracionMediaTx (DEFAULT_CLIENTES_DURACION_LLAMADA);
+  Time clientesDuracionMediaSilencio (DEFAULT_CLIENTES_SILENCIO);
+  DataRate clientesCapacidadEnlaceMedia (DEFAULT_CLIENTES_TASA);
+  Time clientesRetardoMedio (DEFAULT_CLIENTES_RETARDO);
 
-  Ptr<ExponentialRandomVariable> onTime = CreateObject<ExponentialRandomVariable> ();
-  Ptr<ExponentialRandomVariable> offTime = CreateObject<ExponentialRandomVariable> ();
- 
-  //Tamaño del paquete
-  uint32_t sizePkt =  TAM_PAQUETE;
-  //Variable que guarda la tasa de envio.
-  DataRate tasaEnvioCliente = DataRate (TASA_ENVIO_CLIENTE);
-
+  // Otras configuraciones
+  // Tasa de transmision del protocolo usado
+  DataRate protocoloTasa (REQUISITO_LLAM_TASA);
+  // Tamaño del paquete (por simplicidad se considerara constante)
+  uint32_t tamPaquete = DEFAULT_TAM_PAQUETE;
 
   // Obtener parametros por linea de comandos
   CommandLine cmd;
-  // cmd.AddValue("calculoNodos", "Calculo de numero de nodos optimo por central", calcularNodos);
-  cmd.AddValue("velocidadEnlacen", "velocidad de conexion media de clientes", velocidadEnlacen);
-  cmd.AddValue("retardoClientesMedia", "retardo medio en los clientes", retardoClientesMedia);
-  cmd.AddValue("probErrorBitClientesMedia", "probabilidad de error de bit media en clientes", probErrorBitClientesMedia);
-  cmd.AddValue("duracionLlamClientesMedia", "duración media de llamadas en los clientes", duracionLlamClientesMedia);
-  cmd.AddValue("duracionSilencioClientesMedia", "duacion media de silencios en los clientes", duracionSilencioClientesMedia);
-  cmd.AddValue("nClientesPorCentral","numero de nodos por central",nClientesPorCentral);
+  cmd.AddValue("calculoClientes", "Modo de calculo de numero de clientes optimo por central", modoCalculoClientes);
+  cmd.AddValue("nClientesPorCentral", "Numero de clientes por central", nClientesPorCentral);
+  cmd.AddValue("conex", "Velocidad de conexion media de clientes", clientesCapacidadEnlaceMedia);
+  cmd.AddValue("delay", "Retardo medio en los clientes", clientesRetardoMedio);
+  cmd.AddValue("ton", "Duracion media de transmision de los clientes", clientesDuracionMediaTx);
+  cmd.AddValue("toff", "Duracion media de tiempo de silencios los clientes tras una transmision", clientesDuracionMediaSilencio);
+  cmd.AddValue("pError", "Probabilidad de error de bit de los enlaces de clientes (constante)", clientesProbErrorBit);
+  cmd.AddValue("tasaVoz", "Tasa durante la transmision de clientes (tasa del protocolo de llamadas)", protocoloTasa);
+  cmd.AddValue("tamPkt", "Tamanio de paquetes transmitidos por clientes", tamPaquete);
   cmd.Parse (argc, argv);
 
+  // Tratar los valores obtenidos/modificados por linea de comandos
+  // Comprueba que el numero de clientes no sea 0, si lo fuera lo pone a 1.
+  nClientesPorCentral = nClientesPorCentral <= 0 ? 1 : nClientesPorCentral;
 
-  Ptr<ExponentialRandomVariable> velEnlace = CreateObject<ExponentialRandomVariable> ();
-  velEnlace -> SetAttribute("Mean", DoubleValue (double(velocidadEnlacen.GetBitRate())));
-  Ptr<ExponentialRandomVariable> retEnlace = CreateObject<ExponentialRandomVariable> ();
-  retEnlace -> SetAttribute("Mean", DoubleValue (retardoClientesMedia));//para meterle 2ms
+  // Construir cadena de parametros de entrada usada en logs y graficas
+  std::ostringstream parametrosEntrada;
+  parametrosEntrada
+    << "conex=" << clientesCapacidadEnlaceMedia.GetBitRate () / 1000000.0 << "Mbps "
+    << "delay=" << clientesRetardoMedio.GetMicroSeconds () / 1000.0 << "ms "
+    << "ton=" << clientesDuracionMediaTx.GetMilliSeconds () / 1000.0 << "s "
+    << "toff=" << clientesDuracionMediaSilencio.GetMilliSeconds () / 1000.0 << "s "
+    << "pError=" << clientesProbErrorBit << " "
+    << "tasaVoz=" << protocoloTasa.GetBitRate () / 1000.0 << "kbps "
+    << "tamPkt=" << tamPaquete << "B";
+  NS_LOG_INFO (parametrosEntrada.str ());
 
+  // Variables aleatorias para obtener valores unicos por clientes:
+  // Tasas, retardos, duraciones de transmision y duraciones de silencio
+  Ptr<ExponentialRandomVariable> clientesCapacidadEnlace = CreateObject<ExponentialRandomVariable> ();
+  Ptr<ExponentialRandomVariable> clientesRetardo = CreateObject<ExponentialRandomVariable> ();
+  Ptr<ExponentialRandomVariable> clientesDuracionTx = CreateObject<ExponentialRandomVariable> ();
+  Ptr<ExponentialRandomVariable> clientesDuracionSilencio = CreateObject<ExponentialRandomVariable> ();
+  // Configurar las variables aleatorias
+  clientesCapacidadEnlace->SetAttribute("Mean", DoubleValue (clientesCapacidadEnlaceMedia.GetBitRate ()));
+  clientesRetardo->SetAttribute("Mean", DoubleValue (clientesRetardoMedio.GetMicroSeconds () / 1000.0));
+  clientesDuracionTx->SetAttribute("Mean", DoubleValue (clientesDuracionMediaTx.GetMilliSeconds () / 1000.0));
+  clientesDuracionSilencio->SetAttribute("Mean", DoubleValue (clientesDuracionMediaSilencio.GetMilliSeconds () / 1000.0));
 
-   // Comprueba que el numero de nodos no sea 0, si lo fuera lo pone a 1.
-  nClientesPorCentral = nClientesPorCentral == 0 ? 1 : nClientesPorCentral;
-
-  //Creación de las graficas requeridas
-  Gnuplot grafica1[3]; //creamos la grafica1.
-  Gnuplot grafica2[3]; //creamos la grafica2.
-  //Variables para poder realizar el Intervalo de confianza
-  //Creamos 2 variables tipo average para guardar los puntos cada grafica.
-  Average<double> puntos1[3]; 
-  Average<double> puntos2[3];
-  double media1[3]; //Guardara la media.
-  double varianza1[3]; //Contendra el valor de la Varianza.
-  double IC1[3]; //Intervalo de confianza grafica1.
-
-  double media2[3]; //Guardara la media .
-  double varianza2[3]; //Contendra el valor de la Varianza.
-  double IC2[3]; //Intervalo de confianza grafica2.
-  
-  // Para los rotulos de las graficas.
-  uint32_t contador=0;
-
-  /*Bucle para crear puntos variando el tamaño de la cola.*/
- for(uint32_t tamcola=1; tamcola <= TAMCOLA; tamcola++)
-    { 
-      NS_LOG_INFO ("Tamaño cola: " << tamcola);
-
-      Gnuplot2dDataset curvagrafica1[3]; //Creación de las curvas de la grafica1.
-      Gnuplot2dDataset curvagrafica2[3]; //Creación de las curvas de la grafica2
-      std::ostringstream rotulocurvagraficas; //creación del rotulo de las curvas de las graficas.
-
-      rotulocurvagraficas << "TamCola: " << contador+1 ;
-      for(uint32_t contador1=0; contador1 < 3;contador1++)
-	{
-	  curvagrafica1[contador1].SetTitle(rotulocurvagraficas.str());
-	  curvagrafica2[contador1].SetTitle(rotulocurvagraficas.str());
-	  curvagrafica1[contador1].SetErrorBars (Gnuplot2dDataset::Y); 
-	  curvagrafica2[contador1].SetErrorBars (Gnuplot2dDataset::Y);
-	  curvagrafica1[contador1].SetStyle(Gnuplot2dDataset::LINES_POINTS);
-	  curvagrafica2[contador1].SetStyle(Gnuplot2dDataset::LINES_POINTS);
-	}
-      //Bucle para las graficas variando el ton.
-      for (double numnodos = NUM_NODOS_INICIAL ; numnodos <= NUM_NODOS_MAXIMOS ; numnodos += NUM_NODOS_PASO)     
-        {
-          // Asignamos el valor a las variables
-          NS_LOG_INFO ("Numero de nodos: " << numnodos);
-         
-          //Bucle para el intervalo de confianza del 95%
-          for (uint32_t z = 0; z < NUM_IC; z++ )
-            {
-              
-              NS_LOG_INFO ("Iteracion IC: " << z+1);
-              
-              double retardos; //Almacenara el retardo cada vez que se llame a simulacion
-              double correctos; //Contendra el porcentaje de paquetes correctos cada vez que se llame a simulacion
-          
-              /*Llamada a la funcion simulacion pasandole el numero de nodos, los tiempos de encendido y apagado
-                la fuente, la tasa de envio, el tamaño del paquete, el tamaño de la cola,
-                retardos y correctos para que guarde en ellas los valores.*/ 
-              //El 1 es el tamaño de la cola que como se va a variar hemos puesto por ahora 1
-	      uint32_t cont=0;
-	      for(double ton=TON_BAJA ; ton<=TON_MAXIMO; ton+=TON_PASO)
-		{
-		  onTime -> SetAttribute("Mean", DoubleValue (ton));
-		  offTime -> SetAttribute("Mean", DoubleValue (duracionSilencioClientesMedia));
-		  simulacion(nClientesPorCentral, velEnlace, retEnlace, onTime, offTime,tasaEnvioCliente, sizePkt,1,probErrorBitClientesMedia,&retardos,&correctos);
-		  
-		  //Vamos almacenando los valores en las variables Average.
-		  puntos1[cont].Update(correctos);
-		  puntos2[cont].Update(retardos);
-		  cont++;
-		}
-            }
-	  for(uint32_t contador2=0; contador2 < 3; contador2++)
-	    {
-	      media1[contador2] = puntos1[contador2].Avg(); //hacemos la media
-	      varianza1[contador2] = puntos1[contador2].Var(); //Calculamos la varianza
-	      IC1[contador2] = IC95*sqrt(varianza1[contador2]/NUM_IC); //Realizamos el IC
-
-	      media2[contador2] = puntos2[contador2].Avg(); //hacemos la media
-	      varianza2[contador2] = puntos2[contador2].Var(); //Calculamos la varianza
-	      IC2[contador2] = IC95*sqrt(varianza2[contador2]/NUM_IC); //Realizamos el IC
-
-	      //Asociamos a cada curva el IC 
-	      curvagrafica1[contador2].Add(numnodos,media1[contador2],IC1[contador2]); 
-	      curvagrafica2[contador2].Add(numnodos,media2[contador2],IC2[contador2]);
-	      puntos1[contador2].Reset(); //Reseteamos los valores guardados en puntos.
-	      puntos2[contador2].Reset(); //Reseteamos los valores guardados en puntos.
-            }
-        }      
-      //Asociamos las curvas a cada grafica.
-      for(uint32_t contador3=0; contador3 <3 ;contador3++)
-	{
-	  grafica1[contador3].AddDataset(curvagrafica1[contador3]);
-	  grafica2[contador3].AddDataset(curvagrafica2[contador3]);
-	  contador++;
-	}
+  // Configuracion graficas:
+  // - Calculo de numero de clientes:
+  //   * Porcent llam OK vs numero de clientes
+  //   * Retardo medio vs numero de clientes
+  //   * Protocolos???
+  //   * Porcent paquetes tx correctamente???
+  //   Para las situaciones de baja, normal y alta actividad
+  Gnuplot graficas[NUM_GRAFICAS];
+  Gnuplot2dDataset curvas[NUM_GRAFICAS][DEFAULT_CENTRALES_TAMCOLA];
+  std::ostringstream tituloGraficas[NUM_GRAFICAS];
+  // Graficas de calculo de numero de clientes
+  // 1 - Grafica de % de cumplimiento de llamadas
+  tituloGraficas[GRAFICA_CUMPLIM]
+    << "Numero de clientes por central, "
+    << REQUISITO_PORCEN_LLAM_CORRECTAS << "\% de llamadas validas "
+    << "(intervalo confianza: " << IC_PORCENTAJE << "%)\\n"
+    << parametrosEntrada.str ();
+  graficas[GRAFICA_CUMPLIM].SetTitle (tituloGraficas[GRAFICA_CUMPLIM].str ());
+  graficas[GRAFICA_CUMPLIM].SetLegend (
+    // Eje X
+    "Numero de clientes por central ",
+    // Eje Y
+    "Porcentaje de mensajes de voz validos (%)"
+  );
+  // 2 - Grafica de retardos medios
+  tituloGraficas[GRAFICA_RETARDO]
+    << "Numero de clientes por central, "
+    << REQUISITO_PORCEN_LLAM_CORRECTAS << "\% de llamadas validas "
+    << "(intervalo confianza: " << IC_PORCENTAJE << "%)\\n"
+    << parametrosEntrada.str ();
+  graficas[GRAFICA_RETARDO].SetTitle (tituloGraficas[GRAFICA_RETARDO].str ());
+  graficas[GRAFICA_RETARDO].SetLegend (
+    // Eje X
+    "Numero de clientes por central ",
+    // Eje Y
+    "Retardo medio de paquete (ms)"
+  );
+  // Configurar las curvas de las graficas
+  std::ostringstream leyendaCurvas[DEFAULT_CENTRALES_TAMCOLA];
+  for (uint32_t tamCola = 1; tamCola <= DEFAULT_CENTRALES_TAMCOLA; tamCola++) {
+    leyendaCurvas[tamCola - 1] << "tamCola: " << tamCola;
+    for (int idGrafica = 0; idGrafica < NUM_GRAFICAS; idGrafica++) {
+      curvas[idGrafica][tamCola - 1].SetTitle (leyendaCurvas[tamCola - 1].str ());
+      curvas[idGrafica][tamCola - 1].SetStyle (Gnuplot2dDataset::LINES_POINTS);
+      curvas[idGrafica][tamCola - 1].SetErrorBars (Gnuplot2dDataset::Y);
     }
+  }
 
-  //Creamos los rotulos para las dos graficas.
-  std::ostringstream rotulografica1;
-  std::ostringstream rotulografica2;
-  std::ostringstream rotulografica3;
-  std::ostringstream rotulografica4;
-  std::ostringstream rotulografica5;
-  std::ostringstream rotulografica6;
-  rotulografica1 << "Porcentaje de paquetes correctamente transmitidos en nivel bajo. sizePkt: " << sizePkt;
-  rotulografica2 << "Porcentaje de paquetes correctamente transmitidos en nivel normal. sizePkt: " << sizePkt;
-  rotulografica3 << "Porcentaje de paquetes correctamente transmitidos en nivel extremo. sizePkt: " << sizePkt;
-  rotulografica4 << "Retardo medio en nivel bajo. sizePkt: " << sizePkt;
-  rotulografica5 << "Retardo medio en nivel normal. sizePkt: " << sizePkt;
-  rotulografica6 << "Retardo medio en nivel extremo. sizePkt: " << sizePkt;
+  // Modo de calculo de clientes
+  // Obtiene un valor aproximado (redondeado a 10) del numero de clientes maximo
+  // que soportaria una central, hasta que empiecen a producirse incumplimiento
+  // del SLA de llamadas (definidas como requisitos anteriormente)
+  if (modoCalculoClientes) {
+    // Cada grafica tendra distintas curvas, una por tamanio de cola
+    for (uint32_t tamCola = 1; tamCola <= DEFAULT_CENTRALES_TAMCOLA; tamCola++) {
+      NS_LOG_DEBUG ("Iteracion tamanio de cola: " << tamCola);
+      // Configurar el algoritmo de calculo de numero de clientes
+      // Servira para obtener los valores de numero de clientes para la grafica
+      CalculoClientes instanciaCalculoClientes (
+        DEFAULT_CENTRALES_TASA, REQUISITO_LLAM_TASA
+      );
+      uint32_t numClientes = instanciaCalculoClientes.GetInitialValue ();
+      numClientesMax = numClientes;
+      // Cada iteracion representara un distinto punto en el eje X de la grafica
+      while (! instanciaCalculoClientes.FoundValue ()) {
+        NS_LOG_DEBUG ("Iteracion clientes: " << numClientes << " clientes");
+        // Obtener punto e IC segun numero de clientes analizado
+        Average<double> porcenLlamValidas;
+        Average<double> retardoMedioLlam;
+        double IC[NUM_GRAFICAS];
+        for (int simul = 0; simul < IC_SIMULACIONES_POR_PUNTO; simul++) {
+          NS_LOG_DEBUG ("Iteracion IC: " << simul);
+          // Ejecutar las simulaciones y obtener los datos
+          RESULTADOS_SIMULACION result = simulacion (
+            numClientes, clientesCapacidadEnlace, clientesRetardo,
+            clientesDuracionTx, clientesDuracionSilencio,
+            clientesProbErrorBit, protocoloTasa, tamPaquete
+          );
+          contadorSimulaciones++;
+          NS_LOG_DEBUG ("Resultado simulacion " << contadorSimulaciones << ": "
+            << "porcenLlamValidas = " << result.porcenLlamValidas << "%, "
+            << "retardoMedioLlam = " << result.retardoMedioLlam.GetMicroSeconds () / 1000.0 << "ms");
+          porcenLlamValidas.Update (result.porcenLlamValidas);
+          retardoMedioLlam.Update (result.retardoMedioLlam.GetMicroSeconds () / 1000.0);
+        }
+        // Calcular el intervalo de confianza
+        IC[GRAFICA_CUMPLIM] = IC_PONDERACION * sqrt (porcenLlamValidas.Var () / IC_SIMULACIONES_POR_PUNTO);
+        IC[GRAFICA_RETARDO] = IC_PONDERACION * sqrt (retardoMedioLlam.Var () / IC_SIMULACIONES_POR_PUNTO);
+        // Aniadir punto a la curva
+        curvas[GRAFICA_CUMPLIM][tamCola - 1].Add (
+          numClientes, porcenLlamValidas.Mean (), IC[GRAFICA_CUMPLIM]
+        );
+        curvas[GRAFICA_RETARDO][tamCola - 1].Add (
+          numClientes, retardoMedioLlam.Mean (), IC[GRAFICA_RETARDO]
+        );
+        // Crearemos una recta representando el requisito de llamadas validas
+        if (numClientesMax < numClientes) {
+          numClientesMax = numClientes;
+        }
+        // Esta parte se dedica a especificamente a ejecutar el algoritmo
+        // El algoritmo se encarga de encontrar un valor optimo de nClientesPorCentral
+        if (cumpleRequisitos (porcenLlamValidas.Mean ())) {
+           NS_LOG_DEBUG ("Cumplimiento de requisitos con " << numClientes << " clientes");
+           numClientes = instanciaCalculoClientes.GetValue ();
+        } else {
+           NS_LOG_DEBUG ("No se cumplen los requisitos con " << numClientes << " clientes");
+           // Incumple clientes, volver al valor anterior
+           numClientes = instanciaCalculoClientes.ResetValue ();
+        }
+      }
+      NS_LOG_INFO ("Encontrado optimo numero de clientes (tamCola = " << tamCola << "): " << numClientes);
+      // Fin ejecucion del algoritmo
+      // Aniadir curvas a las graficas
+      graficas[GRAFICA_CUMPLIM].AddDataset (curvas [GRAFICA_CUMPLIM][tamCola - 1]);
+      graficas[GRAFICA_RETARDO].AddDataset (curvas [GRAFICA_RETARDO][tamCola - 1]);
+    }
+    // Fin de recorrido de las curvas
+    // Representar el requisito en una linea horizontal
+    // Aniadir requisito de llamadas validas en la grafica correspondiente
+    std::ostringstream rectaRequisitoLlam;
+    rectaRequisitoLlam
+      << "set arrow from 0,"
+      << (REQUISITO_PORCEN_LLAM_CORRECTAS) << " "
+      << "to " << numClientesMax << ","
+      << floor (REQUISITO_PORCEN_LLAM_CORRECTAS) << " "
+      << "nohead";
+    graficas[GRAFICA_CUMPLIM].AppendExtra (rectaRequisitoLlam.str ());
+    // Arreglar el intervalo de las graficas creadas
+    for (int idGrafica = 0; idGrafica < NUM_GRAFICAS; idGrafica++) {
+      std::ostringstream intervaloNumClientes;
+      intervaloNumClientes << "set xrange [0:+" << numClientesMax << "]";
+      graficas[idGrafica].AppendExtra (intervaloNumClientes.str ());
+    }
+  }
+  // Fin del modo de calculo de clientes
 
-  //Asociamos los rotulos a cada grafica.
-  grafica1[0].SetTitle(rotulografica1.str());
-  grafica1[1].SetTitle(rotulografica2.str());
-  grafica1[2].SetTitle(rotulografica3.str());
-  grafica2[0].SetTitle(rotulografica4.str());
-  grafica2[1].SetTitle(rotulografica5.str());
-  grafica2[2].SetTitle(rotulografica6.str());
+  // Crear las graficas e imprimirlas
+  for (int idGrafica = 0; idGrafica < NUM_GRAFICAS; idGrafica++) {
+    // Creacion del fichero
+    std::ostringstream tituloFichero;
+    tituloFichero << "trabajo8-" << idGrafica + 1 << ".plt";
+    std::ofstream ficheroGrafica (std::string (tituloFichero.str ()).c_str ());
+    // Imprimir la grafica en el fichero recien creado
+    graficas[idGrafica].GenerateOutput (ficheroGrafica);
+    ficheroGrafica << "pause -1" << std::endl;
+    ficheroGrafica.close ();
+  }
 
-  /*Guardamos la grafica1 en un fichero donde se representa el porcentaje de 
-    paquetes correctamente transmitidos.*/ 
-  grafica1[0].SetLegend("Numero de nodos.","Porcentaje paquetes correctos.[%]");
-  std::ofstream fichero1("trabajo-1.1.plt");
-  grafica1[0].GenerateOutput(fichero1);
-  fichero1 <<" pause -1" << std::endl;
-  fichero1.close();
+  // Informacion de debug sobre los resultados
+  NS_LOG_DEBUG (
+    "RESULTADOS GLOBALES DE LAS SIMULACIONES\n"
+    << "* Numero de simulaciones: " << contadorSimulaciones
+    << "* Numero de clientes maximo simulado: " << numClientesMax
+  );
 
- /*Guardamos la grafica1 en un fichero donde se representa el porcentaje de 
-    paquetes correctamente transmitidos.*/ 
-  grafica1[1].SetLegend("Numero de nodos.","Porcentaje paquetes correctos.[%]");
-  std::ofstream fichero2("trabajo-1.2.plt");
-  grafica1[1].GenerateOutput(fichero2);
-  fichero2 <<" pause -1" << std::endl;
-  fichero2.close();
-
- /*Guardamos la grafica1 en un fichero donde se representa el porcentaje de 
-    paquetes correctamente transmitidos.*/ 
-  grafica1[2].SetLegend("Numero de nodos.","Porcentaje paquetes correctos.[%]");
-  std::ofstream fichero3("trabajo-1.3.plt");
-  grafica1[2].GenerateOutput(fichero3);
-  fichero3 <<" pause -1" << std::endl;
-  fichero3.close();
-
-  /*Guardamos la grafica2 en un fichero donde se representa el retardo medio.*/
-  grafica2[0].SetLegend("Numero de nodos.","Retardo medio.[us]");
-  std::ofstream fichero4("trabajo-2.1.plt");
-  grafica2[0].GenerateOutput(fichero4);
-  fichero4 << "pause -1" << std::endl;
-  fichero4.close();
-
-  /*Guardamos la grafica2 en un fichero donde se representa el retardo medio.*/
-  grafica2[1].SetLegend("Numero de nodos.","Retardo medio.[us]");
-  std::ofstream fichero5("trabajo-2.2.plt");
-  grafica2[1].GenerateOutput(fichero5);
-  fichero5 << "pause -1" << std::endl;
-  fichero5.close();
-
-  /*Guardamos la grafica2 en un fichero donde se representa el retardo medio.*/
-  grafica2[2].SetLegend("Numero de nodos.","Retardo medio.[us]");
-  std::ofstream fichero6("trabajo-2.3.plt");
-  grafica2[2].GenerateOutput(fichero6);
-  fichero6 << "pause -1" << std::endl;
-  fichero6.close();
-
+  // Siempre retornaremos 0
   return 0;
 }
-/*
-bool
-cumpleRequisitos ()
-{
-  // TODO
-  return false;
-}
-*/
 
-void
-simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnlace, 
-	    Ptr<ExponentialRandomVariable> retEnlace, Ptr<ExponentialRandomVariable> onTime, 
-	    Ptr<ExponentialRandomVariable> offTime, DataRate tasaEnvioCliente, uint32_t sizePkt,
-	    uint32_t tamcola, double probErrorBitClientesMedia, double* retardos, double* correctos) {
+bool
+cumpleRequisitos (double porcenLlamValidas)
+{
+  NS_LOG_FUNCTION (porcenLlamValidas);
+  return porcenLlamValidas >= REQUISITO_PORCEN_LLAM_CORRECTAS;
+}
+
+RESULTADOS_SIMULACION
+simulacion (
+  uint32_t numClientes,
+  Ptr<ExponentialRandomVariable> capacEnlace, Ptr<ExponentialRandomVariable> delayEnlace,
+  Ptr<ExponentialRandomVariable> ton, Ptr<ExponentialRandomVariable> toff,
+  double pError, DataRate tasaLlam, uint32_t sizePkt
+) {
+  RESULTADOS_SIMULACION resultados;
+  resultados.porcenLlamValidas = 100.0 - numClientes * 0.01;
+  resultados.retardoMedioLlam = Time ("2ms");
+
+  /*
+  NodeContainer clientes
+  for (int i = 0; i < NUM_CENTRALES; i++) {
+    NodeContainer centrales
+  }
+
+
 
   NodeContainer p2pNodes1;
   p2pNodes1.Create (nClientesPorCentral+1);//Creamos todos los nodos junto con las centrales
@@ -321,10 +351,9 @@ simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnla
   //Asociacion de los nodos a las distintas centrales.
   for(uint32_t nodo=0; nodo<nClientesPorCentral; nodo++)
     {
-     
       central1[nodo].Add(p2pNodes1.Get(0));
       central1[nodo].Add(p2pNodes1.Get(nodo+1));
-      
+
       central2[nodo].Add(p2pNodes2.Get(0));
       central2[nodo].Add(p2pNodes2.Get(nodo+1));
     }
@@ -336,11 +365,11 @@ simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnla
   NetDeviceContainer DeviceCentrales;
   //Asignamos al canal los errores
   Ptr<RateErrorModel> errores = CreateObject<RateErrorModel> ();
-  errores->SetUnit (RateErrorModel::ERROR_UNIT_BIT); 
+  errores->SetUnit (RateErrorModel::ERROR_UNIT_BIT);
   errores->SetRate (probErrorBitClientesMedia);
-   pointToPointCentrales.SetDeviceAttribute ("ReceiveErrorModel", PointerValue (errores));
+  pointToPointCentrales.SetDeviceAttribute ("ReceiveErrorModel", PointerValue (errores));
   DeviceCentrales= pointToPointCentrales.Install (centrales);
-  
+
   Ptr<PointToPointNetDevice> nodoenlace1= DeviceCentrales.Get(0)->GetObject<PointToPointNetDevice>();
   nodoenlace1->GetQueue()->GetObject<DropTailQueue>()->SetAttribute("MaxPackets",UintegerValue(tamcola));
   Ptr<PointToPointNetDevice> nodoenlace2= DeviceCentrales.Get(1)->GetObject<PointToPointNetDevice>();
@@ -351,11 +380,9 @@ simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnla
   NetDeviceContainer DeviceCentral2[nClientesPorCentral];
 
 
-  
   //Agregacion de los atributos a los enlaces entre nodos y centrales
   for(uint32_t device=0; device<nClientesPorCentral;device++)
   {
-     
     pointToPointNodos.SetDeviceAttribute ("DataRate",DataRateValue(DataRate(uint64_t(velEnlace->GetValue()))));
     pointToPointNodos.SetChannelAttribute ("Delay", TimeValue(Time(retEnlace->GetValue())));
     pointToPointNodos.SetDeviceAttribute ("ReceiveErrorModel", PointerValue (errores));
@@ -376,7 +403,6 @@ simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnla
   Ipv4InterfaceContainer Interfacescentrales;
   Interfacescentrales = address.Assign (DeviceCentrales);
 
-  
   uint32_t ip1=1;
   uint32_t ip2=1;
   Ipv4InterfaceContainer Interfacesnodos1[nClientesPorCentral];
@@ -384,41 +410,38 @@ simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnla
 
   for(uint32_t nclientes=0; nclientes < nClientesPorCentral; nclientes++)
     {
-      std::ostringstream direccionIP1; 
+      std::ostringstream direccionIP1;
       std::ostringstream direccionIP2;
-      
       if(ip1<255)
-	{
-	 
-	  direccionIP1 << "10."<< ip2 << "." << ip1 << ".0" ;
-	  ip1++;
-	  direccionIP2 << "10."<< ip2 << "." << ip1 << ".0" ;
-	  ip1++;
-	}
+      {
+        direccionIP1 << "10."<< ip2 << "." << ip1 << ".0" ;
+        ip1++;
+        direccionIP2 << "10."<< ip2 << "." << ip1 << ".0" ;
+        ip1++;
+      }
       else
-	{
-	  
-	  ip1=1;
-	  ip2++;
-	  direccionIP1 << "10."<< ip2 << "." << ip1 << ".0" ;	  
-	  ip1++;
-	  direccionIP2 << "10."<< ip2 << "." << ip1 << ".0" ;
-	  ip1++;
-	}
-      
+      {
+        ip1=1;
+        ip2++;
+        direccionIP1 << "10."<< ip2 << "." << ip1 << ".0" ;
+        ip1++;
+        direccionIP2 << "10."<< ip2 << "." << ip1 << ".0" ;
+        ip1++;
+      }
+
       address.SetBase (direccionIP1.str().c_str(), "255.255.255.0");
       Interfacesnodos1[nclientes] = address.Assign ( DeviceCentral1[nclientes]);
       address.SetBase (direccionIP2.str().c_str(), "255.255.255.0");
       Interfacesnodos2[nclientes] = address.Assign ( DeviceCentral2[nclientes]);
-      
+
     }
-  
+
   // Calculamos las rutas del escenario. Con este comando, los
   //     nodos de la red de área local definen que para acceder
   //     al nodo del otro extremo del enlace punto a punto deben
   //     utilizar el primer nodo como ruta por defecto.
    Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
-   
+
     uint16_t port = 9;
     PacketSinkHelper sink1 ("ns3::UdpSocketFactory",
                          Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
@@ -433,12 +456,12 @@ simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnla
    for (uint32_t nclientes=0; nclientes<nClientesPorCentral; nclientes++)
      {
        //Instalacion de sumideros
-        app1[nclientes] = sink1.Install (central1[nclientes].Get (0));
-	app2[nclientes] = sink2.Install (central2[nclientes].Get (0));
+       app1[nclientes] = sink1.Install (central1[nclientes].Get (0));
+       app2[nclientes] = sink2.Install (central2[nclientes].Get (0));
 
-	//Creacion de clientes
+       //Creacion de clientes
        OnOffHelper clientes1 ("ns3::UdpSocketFactory",
-			      Address (InetSocketAddress ( Interfacesnodos2[nclientes].GetAddress (0), port)));
+         Address (InetSocketAddress ( Interfacesnodos2[nclientes].GetAddress (0), port)));
        //Valores de los clientes concectados a la central1
        clientes1.SetAttribute("OnTime",PointerValue(onTime));
        clientes1.SetAttribute("OffTime",PointerValue(offTime));
@@ -447,7 +470,7 @@ simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnla
        //para añadir el on/off a todos los nodos de la central1.
        clientApps1[nclientes] = clientes1.Install (central1[nclientes]);
        OnOffHelper clientes2 ("ns3::UdpSocketFactory",
-			      Address (InetSocketAddress ( Interfacesnodos1[nclientes].GetAddress (0), port)));
+         Address (InetSocketAddress ( Interfacesnodos1[nclientes].GetAddress (0), port)));
        //Valores de los clientes concectados a la central2
        clientes2.SetAttribute("OnTime",PointerValue(onTime));
        clientes2.SetAttribute("OffTime",PointerValue(offTime));
@@ -456,18 +479,18 @@ simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnla
        //para añadir el on/off a todos los nodos de la central2.
        clientApps2[nclientes] = clientes2.Install (central2[nclientes]);
      }
- 
+
     //Trazas
   Observador observador;
 
   for(uint32_t numclientes = 0; numclientes <nClientesPorCentral; numclientes++)
-    { 
+    {
       clientApps1[numclientes].Get(0)->TraceConnectWithoutContext ("Tx",MakeCallback(&Observador::ActualizaTinicio,&observador));
       clientApps2[numclientes].Get(0)->TraceConnectWithoutContext ("Tx",MakeCallback(&Observador::ActualizaTinicio,&observador));
       app1[numclientes].Get(0)->TraceConnectWithoutContext("Rx",MakeCallback(&Observador::ActualizaRetardos,&observador));
       app2[numclientes].Get(0)->TraceConnectWithoutContext("Rx",MakeCallback(&Observador::ActualizaRetardos,&observador));
     }
-   
+
   for(uint32_t nclientes=0; nclientes<nClientesPorCentral; nclientes++)
     {
       clientApps1[nclientes].Start (Seconds (2.0));
@@ -479,8 +502,8 @@ simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnla
     // Lanzamos la simulación
   Simulator::Run ();
   Simulator::Destroy ();
-   
-   //Comprovamos que la estructura no este vacia y en caso de estarlo 
+
+   //Comprovamos que la estructura no este vacia y en caso de estarlo
   //saltara un warn.
   observador.CompruebaEstructura();
 
@@ -490,6 +513,8 @@ simulacion (uint32_t nClientesPorCentral, Ptr<ExponentialRandomVariable> velEnla
   //Guardamos el porcentaje de paquetes correctos en "correctos"
   *(correctos)=observador.GetMediaCorrectos()*100;
   NS_LOG_INFO ("Porcentaje Correcto: " << observador.GetMediaCorrectos()*100 << "%");
+  */
 
+  return resultados;
 }
 

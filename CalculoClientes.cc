@@ -12,8 +12,8 @@
 
 NS_LOG_COMPONENT_DEFINE ("CalculoClientes");
 
+/*
 // Inicio de test manual
-#ifndef TRABAJO
 // Se ha implementado una funcionalidad para probar el algoritmo de calculo
 // de clientes, de forma separada a simulacion.cc, para lo cual es necesario
 // que la constante TRABAJO no este definida.
@@ -48,25 +48,25 @@ main (void)
   }
   return 0;
 }
-#endif
 // Fin de test manual
+*/
 
 // Constructor de la clase
 CalculoClientes::CalculoClientes (char tasaCentrales[], char tasaProto[])
 {
   NS_LOG_FUNCTION (tasaCentrales << tasaProto);
-	uint32_t kbpsCentrales = (DataRate (tasaCentrales)).GetBitRate () / 1000;
-	uint32_t kbpsProto = (DataRate (tasaProto)).GetBitRate () / 1000;
-	// Definimos el valor inicial del contador de clientes
-	// Queremos que sea divisible por 10, de ahi que se realice en dos pasos
-	// Esto se consigue gracias al redondeo en C++ al usar tipos enteros
-	contadorClientes = kbpsCentrales / (kbpsProto * 10);
-	contadorClientes = contadorClientes * 10;
+  uint32_t kbpsCentrales = (DataRate (tasaCentrales)).GetBitRate () / 1000;
+  uint32_t kbpsProto = (DataRate (tasaProto)).GetBitRate () / 1000;
+  // Definimos el valor inicial del contador de clientes
+  // Queremos que sea divisible por 10, de ahi que se realice en dos pasos
+  // Esto se consigue gracias al redondeo en C++ al usar tipos enteros
+  contadorClientes = kbpsCentrales / (kbpsProto * 10);
+  contadorClientes = contadorClientes * 10;
   NS_LOG_DEBUG ("Valor inicial de contadorClientes: " << contadorClientes);
-	// El candidato se inicia a cero y debe ser distinto al contador en la primera iteracion
-	candidato = 0;
-	// Iniciamos el iterador a cero
-	iterador = 0;
+  // El candidato se inicia a cero y debe ser distinto al contador en la primera iteracion
+  candidato = 0;
+  // Iniciamos el iterador a cero
+  iterador = 0;
 }
 
 uint32_t
@@ -74,16 +74,16 @@ CalculoClientes::GetInitialValue ()
 {
   NS_LOG_FUNCTION_NOARGS ();
   NS_LOG_DEBUG ("Valor inicial de contador de clientes: " << contadorClientes);
-	return candidato;
+  return candidato;
 }
 
 uint32_t
 CalculoClientes::GetValue ()
 {
   NS_LOG_FUNCTION_NOARGS ();
-	candidato = contadorClientes;
-	iterador++;
-	contadorClientes = contadorClientes + (10 * iterador);
+  candidato = contadorClientes;
+  iterador++;
+  contadorClientes = contadorClientes + (10 * iterador);
   NS_LOG_DEBUG ("Valor de contador de clientes: " << contadorClientes);
   return contadorClientes;
 }
@@ -92,19 +92,19 @@ uint32_t
 CalculoClientes::ResetValue ()
 {
   NS_LOG_FUNCTION_NOARGS ();
-	if (contadorClientes - candidato <= 10)
-	{
-		contadorClientes = candidato;
-	}
-	else
-	{
-		// Aumentamos el
-		contadorClientes = candidato + 10;
-		// Reseteamos el iterador
-		iterador = 0;
-	}
+  if (contadorClientes - candidato <= 10)
+  {
+    contadorClientes = candidato;
+  }
+  else
+  {
+    // Aumentamos el
+    contadorClientes = candidato + 10;
+    // Reseteamos el iterador
+    iterador = 0;
+  }
   NS_LOG_DEBUG ("Valor de contador de clientes tras reset: " << contadorClientes);
-	return contadorClientes;
+  return contadorClientes;
 }
 
 bool
@@ -117,6 +117,6 @@ CalculoClientes::FoundValue ()
   } else {
     NS_LOG_DEBUG ("No se ha encontrado optimo aun (contador de clientes: " << contadorClientes << ")");
   }
-	return result;
+  return result;
 }
 
