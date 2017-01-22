@@ -34,7 +34,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 // Valores por defecto del escenario
 #define DEFAULT_CENTRALES_TASA "1Mbps" // Tasa de transmision entre centrales
 #define DEFAULT_CENTRALES_RETARDO "10ms" // Retardo entre centrales
-#define DEFAULT_CENTRALES_PERROR_BIT "0.000005" // Prob. error de bit entre centrales
+#define DEFAULT_CENTRALES_PERROR_BIT 0.000005 // Prob. error de bit entre centrales
 #define DEFAULT_CENTRALES_TAMCOLA 2
 
 // Valores por defecto del los clientes
@@ -76,8 +76,7 @@ RESULTADOS_SIMULACION
 simulacion (
   uint32_t numClientes,
   Ptr<ExponentialRandomVariable> capacEnlace, Ptr<ExponentialRandomVariable> delayEnlace,
-  Ptr<ExponentialRandomVariable> ton, Ptr<ExponentialRandomVariable> toff,
-  double pError, DataRate tasaLlam, uint32_t sizePkt
+  double pError, DataRate tasaLlam, uint32_t sizePkt, uint32_t tamCola
 );
 
 int
@@ -228,8 +227,7 @@ main (int argc, char *argv[])
           // Ejecutar las simulaciones y obtener los datos
           RESULTADOS_SIMULACION result = simulacion (
             numClientes, clientesCapacidadEnlace, clientesRetardo,
-            clientesDuracionTx, clientesDuracionSilencio,
-            clientesProbErrorBit, protocoloTasa, tamPaquete
+            clientesProbErrorBit, protocoloTasa, tamPaquete, tamCola
           );
           contadorSimulaciones++;
           NS_LOG_DEBUG ("Resultado simulacion " << contadorSimulaciones << ": "
@@ -323,13 +321,10 @@ RESULTADOS_SIMULACION
 simulacion (
   uint32_t numClientes,
   Ptr<ExponentialRandomVariable> capacEnlace, Ptr<ExponentialRandomVariable> delayEnlace,
-  Ptr<ExponentialRandomVariable> ton, Ptr<ExponentialRandomVariable> toff,
-  double pError, DataRate tasaLlam, uint32_t sizePkt
+  double pError, DataRate tasaLlam, uint32_t sizePkt, uint32_t tamCola
 ) {
   NS_LOG_FUNCTION (numClientes << capacEnlace << delayEnlace
-                   << ton << toff << pError << tasaLlam << sizePkt);
-  // Variable a usar para almacenar datos
-  RESULTADOS_SIMULACION resultados;
+                   << pError << tasaLlam << sizePkt);
 
   // -------------------------------- CENTRALES --------------------------------
   // Nodos de centrales
@@ -373,7 +368,7 @@ simulacion (
     // Asignar los pares cliente-central
     // De 0 a n-1 para la central 1, de n a 2n-1 para la central 2
     for (uint32_t iteradorClientes = 0;
-         iteradorCliente < numClientes;
+         iteradorClientes < numClientes;
          iteradorClientes++) {
       // Lograr una iteracion desde 0 hasta 2n - 1
       uint32_t idCliente = iteradorClientes * (idCentral + 1);
@@ -383,9 +378,9 @@ simulacion (
       paresClienteCentral[idCliente].Add (clientes[idCentral].Get (idCliente));
       // Configurar los parametros del enlace: Tasa, retardo y errores
       enlacesClienteCentral[idCliente].SetChannelAttribute ("DataRate",
-        StringValue (capacEnlace.GetValue ()));
+        DoubleValue (capacEnlace->GetValue ()));
       enlacesClienteCentral[idCliente].SetChannelAttribute ("Delay",
-        StringValue (delayEnlace.GetValue ()));
+        DoubleValue (delayEnlace->GetValue ()));
       enlacesClienteCentral[idCliente].SetChannelAttribute ("ReceiveErrorModel",
         PointerValue (pErrorClienteCentral));
       // Instalar los dispositivos en los nodos
@@ -455,7 +450,7 @@ simulacion (
     clientesLlam[idCliente].SetAttribute ("PacketSize", UintegerValue (sizePkt));
     // Instalar la aplicacion sobre un unico nodo
     // Notese que cada aplicacion tendra un destino distinto
-    appsLlam[idCliente] = clientesLlam[idCliente].Install (clientes.Get (idCliente));
+    appsLlam[idCliente] = clientesLlam[idCliente].Install (clientes[idCliente]);
   }
 
   // ------------------------------- OBSERVADOR --------------------------------
@@ -469,14 +464,15 @@ simulacion (
     appsLlam[idCliente].Get (0)
       ->GetObject<BulkSendApplication> ()
       ->TraceConnectWithoutContext ("Tx", MakeCallback (&Observador::ActualizaTinicio,
-                                                        &observa));
+                                                        &observador));
     // Asociar las trazas de recepcion de todos los sumideros
     appSumidero.Get (idCliente)
-      ->GetObject<PacketSink>
-      ->TraceConnectWithoutContext ("Rx", MakeCallback (&Observador::ActualizaRetardos));
+      ->GetObject<PacketSink> ()
+      ->TraceConnectWithoutContext ("Rx", MakeCallback (&Observador::ActualizaRetardos,
+      													&observador));
     // Establecer los tiempos de inicio y final de cada llamada
-    appsLlam.Start (llamadas.GetStartTime (idCliente));
-    appsLlam.Stop (llamadas.GetStopTime (idCliente));
+    appsLlam->Start (llamadas.GetStartTime (idCliente));
+    appsLlam->Stop (llamadas.GetStopTime (idCliente));
   }
 
   // ------------------- SIMULACION Y RECOPILACION DE DATOS --------------------
@@ -484,7 +480,7 @@ simulacion (
   Simulator::Run ();
   Simulator::Destroy ();
   // Insertar resultados en la estructura deseada
-  resultados = {
+  RESULTADOS_SIMULACION resultados = {
     // Porcentaje de llamadas validas
     observador.GetMediaCorrectos (),
     // Retardo medio de llamada

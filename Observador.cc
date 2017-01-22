@@ -78,7 +78,7 @@ void Observador::ActualizaRetardos(Ptr<const Packet> paquete, const Address & di
 
 
 //Función que devuelve la media de los retardos producidos en el canal. 
-double Observador::GetMediaRetardos()
+Time Observador::GetMediaRetardos()
 {
   NS_LOG_FUNCTION_NOARGS ();
   double mediaretardos;
@@ -91,7 +91,7 @@ double Observador::GetMediaRetardos()
       NS_LOG_WARN ("No se ha recibido ninguna respuesta. La media de retardo es 0.");    
     }
 
-  return mediaretardos;
+  return Time(mediaretardos);
 }
 
 

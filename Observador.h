@@ -32,7 +32,7 @@ public:
   void ActualizaRetardos(Ptr<const Packet> paquete, const Address & direccion );
 
   //Función que devuelve la media de los retardos producidos en el canal. 
-  double GetMediaRetardos();
+  Time GetMediaRetardos();
 
   //Función que devuelve la media de los paquetes correctos.
   double GetMediaCorrectos();
