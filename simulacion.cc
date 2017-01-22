@@ -368,13 +368,15 @@ simulacion (
   NetDeviceContainer* dispClienteCentral = new NetDeviceContainer[2 * numClientes];
   // La logica de creacion de clientes es la misma en las dos centrales
   // Recorrer centrales y asociar nuevos nodos
-  for (int idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
+  for (uint32_t idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
     clientes[idCentral].Create (numClientes + 1);
     // Asignar los pares cliente-central
     // De 0 a n-1 para la central 1, de n a 2n-1 para la central 2
-    for (int idCliente = 0; idCliente < numClientes; idCliente++) {
+    for (uint32_t iteradorClientes = 0;
+         iteradorCliente < numClientes;
+         iteradorClientes++) {
       // Lograr una iteracion desde 0 hasta 2n - 1
-      int idCliente = idCliente * (idCentral + 1);
+      uint32_t idCliente = iteradorClientes * (idCentral + 1);
       // Aniadir central al par cliente-central
       paresClienteCentral[idCliente].Add (centrales.Get (idCentral));
       // Lo mismo para clientes (un cliente distinto por par central cliente)
@@ -393,22 +395,26 @@ simulacion (
     // int idParClienteCentral
   }
   // Fin recorrido de centrales
+  // Asignamiento de llamadas (dos clientes comunicados entre si)
+  // Los valores "duracionLlamadas" y "probLlamada" son variables aleatorias
+  LlamadasHelper llamadas (numClientes, duracionLlamadas, probLlamada);
 
   // ------------------------- CONFIGURACIONES DE RED --------------------------
   // Instalamos la pila TCP/IP en todos los clientes y centrales
-  InternetStackHelper pilaTcp;
-  pilaTcp.Install (centrales);
-  for (int idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
-    pilaTcp.Install (clientes[idCentral]);
+  InternetStackHelper pilaTcpIp;
+  pilaTcpIp.Install (centrales);
+  for (uint32_t idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
+    pilaTcpIp.Install (clientes[idCentral]);
   }
   // Asignamiento de IPs, delegada a una clase
   DireccionamientoIpv4Helper direcciones;
   RedIpv4 subredes[2 * numClientes + 1]; // Incluye una subred para centrales
   // Red entre centrales (que es un poco especifica)
-  subredes[0] = direcciones.CreateSubnet (dispositivosCentrales);
-  for (int idCliente = 0; idCliente < 2 * numClientes; idCliente++) {
+  subredes[0] = direcciones.CreateSubnet (dispositivosCentrales, 0);
+  for (uint32_t idCliente = 0; idCliente < 2 * numClientes; idCliente++) {
     // Notese que la subred #0 es la que conecta las centrales
-    subredes[idCliente + 1] = direcciones.CreateSubnet (dispClienteCentral[idCliente]);
+    subredes[idCliente + 1] = direcciones.CreateSubnet (dispClienteCentral[idCliente],
+                                                        idCliente);
   }
   // Popular las tablas de enrutamiento, con el fin de que todos los clientes
   // de una central puedan acceder a los que pertenecen a esta, y tambien a los
@@ -427,29 +433,29 @@ simulacion (
                              Address (InetSocketAddress (Ipv4Address::GetAny (),
                                                          APP_PORT)));
   // Instalamos el sumidero sobre todos los clientes disponibles
-  for (int idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
+  for (uint32_t idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
     ApplicationContainer appSumidero = sumidero.Install (clientes[idCentral]);
   }
 
-  // ---------------------- APLICACIONES: CLIENTES ON/OFF ----------------------
-  // Cada cliente (que no central) tendran instalado un cliente On/Off, que
-  // modelaran un sistema de llamadas
-  // Establecer IP destino aleatoria, al puerto del sumidero
-  OnOffHelper* clientesOnOff = new OnOffHelper[2 * numClientes];
-  ApplicationContainer* appsOnOff = new ApplicationContainer[2 * numClientes];
-  for (int idCliente = 0; idCliente < 2 * numClientes; idCliente++) {
-    clientesOnOff[idCliente]("ns3::UdpSocketFactory",
-                             Address (InetSocketAddress (direcciones.GetAny (idCliente),
-                                                         APP_PORT)));
-    // Configurar los tiempos de transmision y silencio de la aplicacion
-    clientesOnOff[idCliente].SetAttribute ("OnTime", PointerValue (ton));
-    clientesOnOff[idCliente].SetAttribute ("OffTime", PointerValue (toff));
+  // ------------------------- APLICACIONES: LLAMADAS --------------------------
+  // Cada cliente (que no central) tendran instalado un cliente de llamadas, que
+  // modelaran un sistema de llamadas en el que se envia un flujo de trafico
+  // constante (que representara la voz en el destino respectivo)
+  BulkSendHelper* clientesLlam = new BulkSendHelper[2 * numClientes];
+  ApplicationContainer* appsLlam = new ApplicationContainer[2 * numClientes];
+  for (uint32_t idCliente = 0; idCliente < 2 * numClientes; idCliente++) {
+    // Establecer IP destino aleatoria, al puerto del sumidero
+    clientesLlam[idCliente](
+      "ns3::UdpSocketFactory",
+      Address (InetSocketAddress (direcciones.GetIp (llamadas.GetIdDestino (idCliente)),
+                                  APP_PORT))
+    );
     // Configurar tasa de transmision y tamanio de paquete
-    clientesOnOff[idCliente].SetAttribute ("DataRate", DataRateValue (tasaLlam));
-    clientesOnOff[idCliente].SetAttribute ("PacketSize", UintegerValue (sizePkt));
+    clientesLlam[idCliente].SetAttribute ("DataRate", DataRateValue (tasaLlam));
+    clientesLlam[idCliente].SetAttribute ("PacketSize", UintegerValue (sizePkt));
     // Instalar la aplicacion sobre un unico nodo
     // Notese que cada aplicacion tendra un destino distinto
-    appsOnOff[idCliente] = clientesOnOff[idCliente].Install (clientes.Get (idCliente));
+    appsLlam[idCliente] = clientesLlam[idCliente].Install (clientes.Get (idCliente));
   }
 
   // ------------------------------- OBSERVADOR --------------------------------
@@ -458,17 +464,19 @@ simulacion (
   // de la misma, con el fin de obtener los datos requeridos para realizar
   // las graficas del programa
   Observador observador;
-  for (int idCliente = 0; idCliente < numClientes; idCliente++) {
+  for (uint32_t idCliente = 0; idCliente < numClientes; idCliente++) {
     // Asociar las trazas de transmision de paquetes de cada cliente (no central)
-    appsOnOff[idCliente].Get (0)
-      ->GetObject<OnOffApplication> ()
+    appsLlam[idCliente].Get (0)
+      ->GetObject<BulkSendApplication> ()
       ->TraceConnectWithoutContext ("Tx", MakeCallback (&Observador::ActualizaTinicio,
                                                         &observa));
     // Asociar las trazas de recepcion de todos los sumideros
     appSumidero.Get (idCliente)
       ->GetObject<PacketSink>
       ->TraceConnectWithoutContext ("Rx", MakeCallback (&Observador::ActualizaRetardos));
-    // TODO: app.Start () y app.Stop () (???)
+    // Establecer los tiempos de inicio y final de cada llamada
+    appsLlam.Start (llamadas.GetStartTime (idCliente));
+    appsLlam.Stop (llamadas.GetStopTime (idCliente));
   }
 
   // ------------------- SIMULACION Y RECOPILACION DE DATOS --------------------

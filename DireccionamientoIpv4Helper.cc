@@ -19,7 +19,8 @@ NS_LOG_COMPONENT_DEFINE ("DireccionamientoIpv4Helper");
 */
 
 Ipv4InterfaceContainer
-DireccionamientoIpv4Helper::CreateSubnet (NetDeviceContainer dispositivos)
+DireccionamientoIpv4Helper::CreateSubnet (uint32_t idCliente,
+                                          NetDeviceContainer dispositivos)
 {
   NS_LOG_FUNCTION (dispositivos);
   Ipv4AddressHelper direcciones;
@@ -58,5 +59,13 @@ DireccionamientoIpv4Helper::RoutingTables ()
   std::ostringstream result;
   // TODO
   return result.str ();
+}
+
+Ipv4Address
+DireccionamientoIpv4Helper::GetIp (uint32_t idCliente)
+{
+  Ipv4Address direccionCliente;
+  // TODO
+  return direccionCliente;
 }
 
