@@ -125,9 +125,10 @@ DireccionamientoIpv4Helper::ToString ()
 {
   NS_LOG_FUNCTION_NOARGS ();
   std::ostringstream result;
+  std::map<uint32_t, Ipv4InterfaceContainer>::iterator iter;
   result << "Asignacion de IPs:\n";
-  for (uint32_t idCliente = 0; idCliente < 2 * NUM_CLIENTES; idCliente++) {
-    result << "* Cliente " << idCliente << ": " << GetIp (idCliente) << "\n";
+  for(iter = interfacesParNodos.begin(); iter != interfacesParNodos.end(); iter++) {
+    result << "* Cliente " << iter->first << ": " << GetIp (iter->first) << "\n";
   }
   return result.str ();
 }

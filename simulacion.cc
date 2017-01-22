@@ -20,6 +20,8 @@
 #include <ns3/random-variable-stream.h>
 #include <ns3/gnuplot.h>
 #include "CalculoClientes.h"
+#include "DireccionamientoIpv4Helper.h"
+#include "LlamadasHelper.h"
 #include "Observador.h"
 
 using namespace ns3;
@@ -39,12 +41,13 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 
 // Valores por defecto del los clientes
 // Por defecto se supondra que esta en condiciones normales
-#define DEFAULT_NUM_CLIENTES 200
+#define DEFAULT_NUM_CLIENTES 100
 #define DEFAULT_CLIENTES_TASA "1Mbps"
 #define DEFAULT_CLIENTES_RETARDO "2ms"
-#define DEFAULT_CLIENTES_DURACION_LLAMADA "5s"
-#define DEFAULT_CLIENTES_SILENCIO "20s"
+#define DEFAULT_CLIENTES_DURACION_LLAMADA "30s"
 #define DEFAULT_CLIENTES_PERROR_BIT 0.00005
+// Probabilidad de que un cliente realice una llamada durante la simulacion
+#define DEFAULT_CLIENTES_PROB_LLAMADA 0.1
 
 // Configuracion del escenario
 #define NUM_CENTRALES 2
@@ -62,6 +65,10 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 #define IC_PORCENTAJE 95
 #define IC_PONDERACION 2.2622
 
+// Configuracion de simulacion (en segundos)
+#define START_TIME "1s"
+#define STOP_TIME "100s"
+
 struct RESULTADOS_SIMULACION {
   // Tanto por cien de llamadas consideradas validas
   double porcenLlamValidas;
@@ -76,6 +83,8 @@ RESULTADOS_SIMULACION
 simulacion (
   uint32_t numClientes,
   Ptr<ExponentialRandomVariable> capacEnlace, Ptr<ExponentialRandomVariable> delayEnlace,
+  Ptr<ExponentialRandomVariable> durLlamVar, Ptr<UniformRandomVariable> tLlamVar,
+  Ptr<UniformRandomVariable> probLlamVar, double pLlam,
   double pError, DataRate tasaLlam, uint32_t sizePkt, uint32_t tamCola
 );
 
@@ -100,8 +109,8 @@ main (int argc, char *argv[])
 
   // Configuracion de clientes
   double clientesProbErrorBit = DEFAULT_CLIENTES_PERROR_BIT;
-  Time clientesDuracionMediaTx (DEFAULT_CLIENTES_DURACION_LLAMADA);
-  Time clientesDuracionMediaSilencio (DEFAULT_CLIENTES_SILENCIO);
+  double clientesProbLlam = DEFAULT_CLIENTES_PROB_LLAMADA;
+  Time clientesDuracionMediaLlam (DEFAULT_CLIENTES_DURACION_LLAMADA);
   DataRate clientesCapacidadEnlaceMedia (DEFAULT_CLIENTES_TASA);
   Time clientesRetardoMedio (DEFAULT_CLIENTES_RETARDO);
 
@@ -113,15 +122,24 @@ main (int argc, char *argv[])
 
   // Obtener parametros por linea de comandos
   CommandLine cmd;
-  cmd.AddValue("calculoClientes", "Modo de calculo de numero de clientes optimo por central", modoCalculoClientes);
-  cmd.AddValue("nClientesPorCentral", "Numero de clientes por central", nClientesPorCentral);
-  cmd.AddValue("conex", "Velocidad de conexion media de clientes", clientesCapacidadEnlaceMedia);
-  cmd.AddValue("delay", "Retardo medio en los clientes", clientesRetardoMedio);
-  cmd.AddValue("ton", "Duracion media de transmision de los clientes", clientesDuracionMediaTx);
-  cmd.AddValue("toff", "Duracion media de tiempo de silencios los clientes tras una transmision", clientesDuracionMediaSilencio);
-  cmd.AddValue("pError", "Probabilidad de error de bit de los enlaces de clientes (constante)", clientesProbErrorBit);
-  cmd.AddValue("tasaVoz", "Tasa durante la transmision de clientes (tasa del protocolo de llamadas)", protocoloTasa);
-  cmd.AddValue("tamPkt", "Tamanio de paquetes transmitidos por clientes", tamPaquete);
+  cmd.AddValue("calculoClientes", "Modo de calculo de num de clientes optimo por central",
+               modoCalculoClientes);
+  cmd.AddValue("nClientesPorCentral", "Numero de clientes por central",
+               nClientesPorCentral);
+  cmd.AddValue("conex", "Velocidad de conexion media de clientes",
+               clientesCapacidadEnlaceMedia);
+  cmd.AddValue("delay", "Retardo medio en los clientes",
+               clientesRetardoMedio);
+  cmd.AddValue("durLlam", "Duracion media de llamada entre clientes",
+               clientesDuracionMediaLlam);
+  cmd.AddValue("pLlam", "Probabilidad de que un cliente realice una llamada en simulacion",
+               clientesProbLlam);
+  cmd.AddValue("pError", "Prob. error bit de enlaces de clientes (constante)",
+               clientesProbErrorBit);
+  cmd.AddValue("tasaVoz", "Tasa del protocolo de llamadas",
+               protocoloTasa);
+  cmd.AddValue("tamPkt", "Tamanio de paquetes transmitidos por clientes",
+               tamPaquete);
   cmd.Parse (argc, argv);
 
   // Tratar los valores obtenidos/modificados por linea de comandos
@@ -133,24 +151,35 @@ main (int argc, char *argv[])
   parametrosEntrada
     << "conex=" << clientesCapacidadEnlaceMedia.GetBitRate () / 1000000.0 << "Mbps "
     << "delay=" << clientesRetardoMedio.GetMicroSeconds () / 1000.0 << "ms "
-    << "ton=" << clientesDuracionMediaTx.GetMilliSeconds () / 1000.0 << "s "
-    << "toff=" << clientesDuracionMediaSilencio.GetMilliSeconds () / 1000.0 << "s "
+    << "durLlam=" << clientesDuracionMediaLlam.GetMilliSeconds () / 1000.0 << "s "
+    << "pLlam=" << clientesProbLlam << " "
     << "pError=" << clientesProbErrorBit << " "
     << "tasaVoz=" << protocoloTasa.GetBitRate () / 1000.0 << "kbps "
     << "tamPkt=" << tamPaquete << "B";
   NS_LOG_INFO (parametrosEntrada.str ());
 
   // Variables aleatorias para obtener valores unicos por clientes:
-  // Tasas, retardos, duraciones de transmision y duraciones de silencio
+  // Capacidad del enlace de cada cliente (en bps)
   Ptr<ExponentialRandomVariable> clientesCapacidadEnlace = CreateObject<ExponentialRandomVariable> ();
-  Ptr<ExponentialRandomVariable> clientesRetardo = CreateObject<ExponentialRandomVariable> ();
-  Ptr<ExponentialRandomVariable> clientesDuracionTx = CreateObject<ExponentialRandomVariable> ();
-  Ptr<ExponentialRandomVariable> clientesDuracionSilencio = CreateObject<ExponentialRandomVariable> ();
-  // Configurar las variables aleatorias
   clientesCapacidadEnlace->SetAttribute("Mean", DoubleValue (clientesCapacidadEnlaceMedia.GetBitRate ()));
+  // Retardo del enlace de cada cliente (en microsegundos)
+  Ptr<ExponentialRandomVariable> clientesRetardo = CreateObject<ExponentialRandomVariable> ();
   clientesRetardo->SetAttribute("Mean", DoubleValue (clientesRetardoMedio.GetMicroSeconds () / 1000.0));
-  clientesDuracionTx->SetAttribute("Mean", DoubleValue (clientesDuracionMediaTx.GetMilliSeconds () / 1000.0));
-  clientesDuracionSilencio->SetAttribute("Mean", DoubleValue (clientesDuracionMediaSilencio.GetMilliSeconds () / 1000.0));
+  // Duracion de cada llamada (en segundos)
+  Ptr<ExponentialRandomVariable> durLlamVar = CreateObject<ExponentialRandomVariable> ();
+  durLlamVar->SetAttribute("Mean", DoubleValue (
+    Time (DEFAULT_CLIENTES_DURACION_LLAMADA).GetMilliSeconds () / 1000.0));
+  // Tiempo de inicio de cada llamada (en segundos)
+  Ptr<UniformRandomVariable> tLlamVar = CreateObject<UniformRandomVariable> ();
+  tLlamVar->SetAttribute("Min", DoubleValue (
+    Time (START_TIME).GetMilliSeconds () / 1000.0));
+  tLlamVar->SetAttribute("Max", DoubleValue (
+    Time (STOP_TIME).GetMilliSeconds () / 1000.0));
+  // Probabilidad de que se produzca una llamada (en tanto por uno)
+  Ptr<UniformRandomVariable> probLlamVar = CreateObject<UniformRandomVariable> ();
+  // Usado para comparar con probabilidad de llamada (parametro)
+  probLlamVar->SetAttribute ("Min", DoubleValue (0));
+  probLlamVar->SetAttribute ("Max", DoubleValue (1));
 
   // Configuracion graficas:
   // - Calculo de numero de clientes:
@@ -227,6 +256,7 @@ main (int argc, char *argv[])
           // Ejecutar las simulaciones y obtener los datos
           RESULTADOS_SIMULACION result = simulacion (
             numClientes, clientesCapacidadEnlace, clientesRetardo,
+            durLlamVar, tLlamVar, probLlamVar, clientesProbLlam,
             clientesProbErrorBit, protocoloTasa, tamPaquete, tamCola
           );
           contadorSimulaciones++;
@@ -321,10 +351,12 @@ RESULTADOS_SIMULACION
 simulacion (
   uint32_t numClientes,
   Ptr<ExponentialRandomVariable> capacEnlace, Ptr<ExponentialRandomVariable> delayEnlace,
+  Ptr<ExponentialRandomVariable> durLlamVar, Ptr<UniformRandomVariable> tLlamVar,
+  Ptr<UniformRandomVariable> probLlamVar, double pLlam,
   double pError, DataRate tasaLlam, uint32_t sizePkt, uint32_t tamCola
 ) {
-  NS_LOG_FUNCTION (numClientes << capacEnlace << delayEnlace
-                   << pError << tasaLlam << sizePkt);
+  NS_LOG_FUNCTION (numClientes << capacEnlace << delayEnlace << durLlamVar << tLlamVar
+                   << probLlamVar << pLlam << pError << tasaLlam << sizePkt << tamCola);
 
   // -------------------------------- CENTRALES --------------------------------
   // Nodos de centrales
@@ -371,11 +403,11 @@ simulacion (
          iteradorClientes < numClientes;
          iteradorClientes++) {
       // Lograr una iteracion desde 0 hasta 2n - 1
-      uint32_t idCliente = iteradorClientes * (idCentral + 1);
+      uint32_t idCliente = iteradorClientes + idCentral * numClientes;
       // Aniadir central al par cliente-central
       paresClienteCentral[idCliente].Add (centrales.Get (idCentral));
       // Lo mismo para clientes (un cliente distinto por par central cliente)
-      paresClienteCentral[idCliente].Add (clientes[idCentral].Get (idCliente));
+      paresClienteCentral[idCliente].Add (clientes[idCentral].Get (iteradorClientes));
       // Configurar los parametros del enlace: Tasa, retardo y errores
       enlacesClienteCentral[idCliente].SetChannelAttribute ("DataRate",
         DoubleValue (capacEnlace->GetValue ()));
@@ -387,12 +419,12 @@ simulacion (
       dispClienteCentral[idCliente] =
         enlacesClienteCentral[idCliente].Install (paresClienteCentral[idCliente]);
     }
-    // int idParClienteCentral
   }
   // Fin recorrido de centrales
   // Asignamiento de llamadas (dos clientes comunicados entre si)
   // Los valores "duracionLlamadas" y "probLlamada" son variables aleatorias
-  LlamadasHelper llamadas (numClientes, duracionLlamadas, probLlamada);
+  LlamadasHelper llamadas (numClientes, durLlamVar, tLlamVar, probLlamVar,
+                           pLlam);
 
   // ------------------------- CONFIGURACIONES DE RED --------------------------
   // Instalamos la pila TCP/IP en todos los clientes y centrales
@@ -403,13 +435,14 @@ simulacion (
   }
   // Asignamiento de IPs, delegada a una clase
   DireccionamientoIpv4Helper direcciones;
-  RedIpv4 subredes[2 * numClientes + 1]; // Incluye una subred para centrales
+  // Incluye subred para centrales
+  Ipv4InterfaceContainer* subredes = new Ipv4InterfaceContainer[2 * numClientes + 1];
   // Red entre centrales (que es un poco especifica)
-  subredes[0] = direcciones.CreateSubnet (dispositivosCentrales, 0);
+  subredes[0] = direcciones.CreateSubnet (numClientes * 2, dispositivosCentrales);
   for (uint32_t idCliente = 0; idCliente < 2 * numClientes; idCliente++) {
     // Notese que la subred #0 es la que conecta las centrales
-    subredes[idCliente + 1] = direcciones.CreateSubnet (dispClienteCentral[idCliente],
-                                                        idCliente);
+    subredes[idCliente + 1] = direcciones.CreateSubnet (idCliente,
+                                                        dispClienteCentral[idCliente]);
   }
   // Popular las tablas de enrutamiento, con el fin de que todos los clientes
   // de una central puedan acceder a los que pertenecen a esta, y tambien a los
@@ -427,30 +460,29 @@ simulacion (
   PacketSinkHelper sumidero ("ns3::UdpSocketFactory",
                              Address (InetSocketAddress (Ipv4Address::GetAny (),
                                                          APP_PORT)));
+  ApplicationContainer* appsSumidero = new ApplicationContainer[NUM_CENTRALES];
   // Instalamos el sumidero sobre todos los clientes disponibles
   for (uint32_t idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
-    ApplicationContainer appSumidero = sumidero.Install (clientes[idCentral]);
+    appsSumidero[idCentral] = sumidero.Install (clientes[idCentral]);
   }
 
   // ------------------------- APLICACIONES: LLAMADAS --------------------------
   // Cada cliente (que no central) tendran instalado un cliente de llamadas, que
   // modelaran un sistema de llamadas en el que se envia un flujo de trafico
   // constante (que representara la voz en el destino respectivo)
-  BulkSendHelper* clientesLlam = new BulkSendHelper[2 * numClientes];
   ApplicationContainer* appsLlam = new ApplicationContainer[2 * numClientes];
   for (uint32_t idCliente = 0; idCliente < 2 * numClientes; idCliente++) {
-    // Establecer IP destino aleatoria, al puerto del sumidero
-    clientesLlam[idCliente](
+    BulkSendHelper clienteLlam (
       "ns3::UdpSocketFactory",
       Address (InetSocketAddress (direcciones.GetIp (llamadas.GetIdDestino (idCliente)),
                                   APP_PORT))
     );
     // Configurar tasa de transmision y tamanio de paquete
-    clientesLlam[idCliente].SetAttribute ("DataRate", DataRateValue (tasaLlam));
-    clientesLlam[idCliente].SetAttribute ("PacketSize", UintegerValue (sizePkt));
+    clienteLlam.SetAttribute ("DataRate", DataRateValue (tasaLlam));
+    clienteLlam.SetAttribute ("PacketSize", UintegerValue (sizePkt));
     // Instalar la aplicacion sobre un unico nodo
     // Notese que cada aplicacion tendra un destino distinto
-    appsLlam[idCliente] = clientesLlam[idCliente].Install (clientes[idCliente]);
+    appsLlam[idCliente] = clienteLlam.Install (clientes[idCliente]);
   }
 
   // ------------------------------- OBSERVADOR --------------------------------
@@ -459,20 +491,22 @@ simulacion (
   // de la misma, con el fin de obtener los datos requeridos para realizar
   // las graficas del programa
   Observador observador;
-  for (uint32_t idCliente = 0; idCliente < numClientes; idCliente++) {
-    // Asociar las trazas de transmision de paquetes de cada cliente (no central)
-    appsLlam[idCliente].Get (0)
-      ->GetObject<BulkSendApplication> ()
-      ->TraceConnectWithoutContext ("Tx", MakeCallback (&Observador::ActualizaTinicio,
-                                                        &observador));
-    // Asociar las trazas de recepcion de todos los sumideros
-    appSumidero.Get (idCliente)
-      ->GetObject<PacketSink> ()
-      ->TraceConnectWithoutContext ("Rx", MakeCallback (&Observador::ActualizaRetardos,
-      													&observador));
-    // Establecer los tiempos de inicio y final de cada llamada
-    appsLlam->Start (llamadas.GetStartTime (idCliente));
-    appsLlam->Stop (llamadas.GetStopTime (idCliente));
+  for (uint32_t idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
+    for (uint32_t idCliente = 0; idCliente < numClientes; idCliente++) {
+      // Asociar las trazas de transmision de paquetes de cada cliente (no central)
+      appsLlam[idCliente].Get (0)
+        ->GetObject<BulkSendApplication> ()
+        ->TraceConnectWithoutContext ("Tx", MakeCallback (&Observador::ActualizaTinicio,
+                                                          &observador));
+      // Establecer los tiempos de inicio y final de cada llamada
+      appsLlam->Start (llamadas.GetStartTime (idCliente));
+      appsLlam->Stop (llamadas.GetStopTime (idCliente));
+      // Asociar las trazas de recepcion de todos los sumideros
+      appsSumidero[idCentral].Get (idCliente)
+        ->GetObject<PacketSink> ()
+        ->TraceConnectWithoutContext ("Rx", MakeCallback (&Observador::ActualizaRetardos,
+                                                          &observador));
+    }
   }
 
   // ------------------- SIMULACION Y RECOPILACION DE DATOS --------------------
