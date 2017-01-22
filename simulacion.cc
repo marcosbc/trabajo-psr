@@ -332,7 +332,7 @@ main (int argc, char *argv[])
   // Informacion de debug sobre los resultados
   NS_LOG_DEBUG (
     "RESULTADOS GLOBALES DE LAS SIMULACIONES\n"
-    << "* Numero de simulaciones: " << contadorSimulaciones
+    << "* Numero de simulaciones: " << contadorSimulaciones << "\n"
     << "* Numero de clientes maximo simulado: " << numClientesMax
   );
 
