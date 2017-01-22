@@ -44,7 +44,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 #define DEFAULT_NUM_CLIENTES 100
 #define DEFAULT_CLIENTES_TASA "1Mbps"
 #define DEFAULT_CLIENTES_RETARDO "2ms"
-#define DEFAULT_CLIENTES_DURACION_LLAMADA "30s"
+#define DEFAULT_CLIENTES_DURACION_LLAMADA "5s"
 #define DEFAULT_CLIENTES_PERROR_BIT 0.00005
 // Probabilidad de que un cliente realice una llamada durante la simulacion
 #define DEFAULT_CLIENTES_PROB_LLAMADA 0.1

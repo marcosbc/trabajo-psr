@@ -37,7 +37,9 @@ void Observador::ActualizaTinicio(Ptr<const Packet> paquete)
   NS_LOG_DEBUG ("Numero de paquetes enviados: " << numPaquetesEnviados);
   //Introducimos en la estructura el tiempo inicial de envio.
   tiemposEnvios[paquete->GetUid()]=Simulator::Now();
-  NS_LOG_DEBUG ("Paquete: " << paquete->GetUid() << " enviado en: " << Simulator::Now());
+  NS_LOG_DEBUG ("Paquete: " << paquete->GetUid()
+                << " enviado en: "
+                << Simulator::Now().GetMilliSeconds () / 1000.0 << "s");
 
 }
 
@@ -55,7 +57,7 @@ void Observador::ActualizaRetardos(Ptr<const Packet> paquete, const Address & di
 
       Time tinicio=tiemposEnvios[paquete->GetUid()];
       Time tfinal = Simulator::Now();
-      NS_LOG_DEBUG ("Paquete: " << paquete->GetUid() << " recibido en: " << Simulator::Now());
+      NS_LOG_DEBUG ("Paquete: " << paquete->GetUid() << " recibido en: " << Simulator::Now().GetMilliSeconds () / 1000.0 << "s");
       double tiempo;
       tiempo = tfinal.GetDouble() - tinicio.GetDouble();
       retardos.Update(tiempo);
