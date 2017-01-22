@@ -24,6 +24,8 @@ using namespace ns3;
 class DireccionamientoIpv4Helper
 {
 public:
+  // Inicializar valores de atributos
+  DireccionamientoIpv4Helper ();
   // Crea una subred y asigna IPs a los dispositivos conectados
   Ipv4InterfaceContainer CreateSubnet (uint32_t idCliente,
                                        NetDeviceContainer dispositivos);

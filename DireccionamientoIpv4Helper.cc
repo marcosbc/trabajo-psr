@@ -89,6 +89,13 @@ main(void)
 // Fin de test manual
 */
 
+DireccionamientoIpv4Helper::DireccionamientoIpv4Helper ()
+{
+  // Inicializarlos a cero
+  subredesAsignadas = 0;
+  interfacesParNodos.clear ();
+}
+
 Ipv4InterfaceContainer
 DireccionamientoIpv4Helper::CreateSubnet (uint32_t idCliente,
                                           NetDeviceContainer dispositivos)

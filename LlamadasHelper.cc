@@ -61,6 +61,8 @@ LlamadasHelper::LlamadasHelper (uint32_t numClientes,
   NS_LOG_FUNCTION (numClientes
                    << duracionLlamadaValores << tInicioLlamadaValores
                    << probLlamadaValores << probLlamadaEnSimulacion);
+  // Empezar inicializando a cero los atributos
+  registroLlamadas.clear ();
   // Asignar llamadas en la variable de registro
   // Notese que "randomIdCliente" genera valores de 0 a 2n - 1,
   // mientras que "idCliente" tendra un valor n
