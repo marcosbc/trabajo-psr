@@ -132,12 +132,21 @@ DireccionamientoIpv4Helper::ToString ()
 {
   NS_LOG_FUNCTION_NOARGS ();
   std::ostringstream result;
-  std::map<uint32_t, Ipv4InterfaceContainer>::iterator iter;
+  // Obtener el ultimo par (interface conectado a enlace entre central)
+  // No queremos mostrar las centrales en el asignamiento
+  std::map<uint32_t, Ipv4InterfaceContainer>::iterator iter, centralesIter;
+  if (! interfacesParNodos.empty()) {
+    centralesIter = interfacesParNodos.end ();
+    // Los dispositivos conectados al enlace entre centrales son los ultimos
+    // elementos de "interfacesParNodos"
+    centralesIter--;
+  }
+  // Imprimir asignacion de IPs de clientes
   result << "Asignacion de IPs de clientes:\n";
   for(iter = interfacesParNodos.begin(); iter != interfacesParNodos.end(); iter++)
   {
     // No imprimir el ultimo par (ya que son las interfaces entre centrales)
-    if (iter != std::prev (interfacesParNodos.end()))
+    if (iter != centralesIter)
     {
       result << "* Cliente " << iter->first << ": " << GetIp (iter->first) << "\n";
     }

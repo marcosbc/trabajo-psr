@@ -427,6 +427,8 @@ simulacion (
   // Los valores "duracionLlamadas" y "probLlamada" son variables aleatorias
   LlamadasHelper llamadas (numClientes, durLlamVar, tLlamVar, probLlamVar,
                            pLlam);
+  // Imprimir la asignacion de llamadas
+  NS_LOG_DEBUG (llamadas.GetAsignacion ());
   // ------------------------- CONFIGURACIONES DE RED --------------------------
   NS_LOG_DEBUG ("Instalando pila TCP/IP");
   // Instalamos la pila TCP/IP en todos los clientes y centrales
