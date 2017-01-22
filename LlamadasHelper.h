@@ -9,7 +9,7 @@
  */
 
 #include <ns3/core-module.h>
-#include <ns3/data-rate.h>
+#include <ns3/random-variable-stream.h>
 
 using namespace ns3;
 
@@ -27,8 +27,10 @@ class LlamadasHelper
 public:
   // Constructor: Crea una tabla de asignamiento de llamadas para clientes
   LlamadasHelper (uint32_t numClientes,
-                  Ptr<RandomVariableStream> duracionLlamada,
-                  Ptr<UniformRandomVariable> probLlamada);
+                  Ptr<RandomVariableStream> duracionLlamadaValores,
+                  Ptr<UniformRandomVariable> tInicioLlamadaValores,
+                  Ptr<UniformRandomVariable> probLlamadaValores,
+                  double probLlamadaEnSimulacion);
   // Obtener el asignamiento de llamada para clientes
   // Notese que una llamada requiere que dos clientes esten en la misma llamada
   uint32_t GetIdDestino (uint32_t idCliente);
@@ -36,6 +38,8 @@ public:
   Time GetStartTime (uint32_t idCliente);
   // Obtener el tiempo absoluto de fin de llamada
   Time GetStopTime (uint32_t idCliente);
+  // Obtener en formato cadena la asignacion de nodos
+  std::string GetAsignacion ();
 private:
   // Almacena las llamadas en curso, por cliente
   // Eso implica que para cada llamada habran dos registros, uno por cada
@@ -46,7 +50,9 @@ private:
   // central
   void asignarLlamada (uint32_t idCliente1,
                        uint32_t idCliente2,
-                       Ptr<RandomVariableStream> duracionLlamada,
-                       Ptr<UniformRandomVariable> probLlamada);
+                       Ptr<RandomVariableStream> duracionLlamadaValores,
+                       Ptr<UniformRandomVariable> tInicioLlamadaValores,
+                       Ptr<UniformRandomVariable> probLlamadaValores,
+                       double probLlamadaEnSimulacion);
 };
 
