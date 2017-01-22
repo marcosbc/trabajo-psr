@@ -483,21 +483,29 @@ simulacion (
   // modelaran un sistema de llamadas en el que se envia un flujo de trafico
   // constante (que representara la voz en el destino respectivo)
   ApplicationContainer* appsLlam = new ApplicationContainer[2 * numClientes];
-  for (uint32_t idCliente = 0; idCliente < 2 * numClientes; idCliente++) {
-    OnOffHelper clienteLlam (
-      "ns3::UdpSocketFactory",
-      Address (InetSocketAddress (direcciones.GetIp (llamadas.GetIdDestino (idCliente)),
-                                  APP_PORT))
-    );
-    // Configurar tasa de transmision y tamanio de paquete
-    clienteLlam.SetAttribute ("DataRate", DataRateValue (tasaLlam));
-    clienteLlam.SetAttribute ("PacketSize", UintegerValue (sizePkt));
-    // Siempre transmitir datos
-    clienteLlam.SetAttribute ("OnTime", PointerValue (ton));
-    clienteLlam.SetAttribute ("OffTime", PointerValue (toff));
-    // Instalar la aplicacion sobre un unico nodo
-    // Notese que cada aplicacion tendra un destino distinto
-    appsLlam[idCliente] = clienteLlam.Install (clientes[idCliente]);
+  for (uint32_t idCentral = 0; idCentral < NUM_CENTRALES; idCentral++)
+  {
+    // Identificador del cliente respecto a todas las centrales
+    uint32_t idClienteTotal;
+    for (uint32_t idCliente = 0; idCliente < numClientes; idCliente++) {
+      idClienteTotal = (idCentral + 1) * idCliente;
+      // Crear la aplicacion, con el destino escogido en "LlamadasHelper"
+      OnOffHelper clienteLlam (
+        "ns3::UdpSocketFactory",
+        Address (InetSocketAddress (
+          direcciones.GetIp (llamadas.GetIdDestino (idClienteTotal)),
+          APP_PORT)));
+      // Configurar tasa de transmision y tamanio de paquete
+      clienteLlam.SetAttribute ("DataRate", DataRateValue (tasaLlam));
+      clienteLlam.SetAttribute ("PacketSize", UintegerValue (sizePkt));
+      // Siempre transmitir datos
+      clienteLlam.SetAttribute ("OnTime", PointerValue (ton));
+      clienteLlam.SetAttribute ("OffTime", PointerValue (toff));
+      // Instalar la aplicacion sobre un unico nodo
+      // Notese que cada aplicacion tendra un destino distinto
+      appsLlam[idClienteTotal] =
+        clienteLlam.Install (clientes[idCentral].Get (idCliente));
+    }
   }
 
   // ------------------------------- OBSERVADOR --------------------------------
