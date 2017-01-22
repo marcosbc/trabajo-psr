@@ -370,12 +370,12 @@ simulacion (
   pErrorCentrales->SetUnit (RateErrorModel::ERROR_UNIT_BIT);
   pErrorCentrales->SetRate (DEFAULT_CENTRALES_PERROR_BIT);
   // Configurar los enlaces entre las centrales
-  enlacesCentrales.SetChannelAttribute ("DataRate",
-                                        StringValue (DEFAULT_CENTRALES_TASA));
+  enlacesCentrales.SetDeviceAttribute ("DataRate",
+                                       StringValue (DEFAULT_CENTRALES_TASA));
   enlacesCentrales.SetChannelAttribute ("Delay",
                                         StringValue (DEFAULT_CENTRALES_RETARDO));
-  enlacesCentrales.SetChannelAttribute ("ReceiveErrorModel",
-                                        PointerValue (pErrorCentrales));
+  enlacesCentrales.SetDeviceAttribute ("ReceiveErrorModel",
+                                       PointerValue (pErrorCentrales));
   // El tamanio de cola sera variable
   enlacesCentrales.SetQueue ("ns3::DropTailQueue", "MaxPackets", UintegerValue (tamCola));
   // Crear el enlace entre las centrales
@@ -409,11 +409,11 @@ simulacion (
       // Lo mismo para clientes (un cliente distinto por par central cliente)
       paresClienteCentral[idCliente].Add (clientes[idCentral].Get (iteradorClientes));
       // Configurar los parametros del enlace: Tasa, retardo y errores
-      enlacesClienteCentral[idCliente].SetChannelAttribute ("DataRate",
+      enlacesClienteCentral[idCliente].SetDeviceAttribute ("DataRate",
         DoubleValue (capacEnlace->GetValue ()));
       enlacesClienteCentral[idCliente].SetChannelAttribute ("Delay",
         DoubleValue (delayEnlace->GetValue ()));
-      enlacesClienteCentral[idCliente].SetChannelAttribute ("ReceiveErrorModel",
+      enlacesClienteCentral[idCliente].SetDeviceAttribute ("ReceiveErrorModel",
         PointerValue (pErrorClienteCentral));
       // Instalar los dispositivos en los nodos
       dispClienteCentral[idCliente] =
