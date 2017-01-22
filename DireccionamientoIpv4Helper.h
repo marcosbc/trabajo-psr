@@ -10,8 +10,14 @@
 
 #include <ns3/core-module.h>
 #include <ns3/data-rate.h>
+#include <ns3/internet-module.h>
+#include <ns3/point-to-point-module.h>
+#include <ns3/applications-module.h>
+#include <ns3/ipv4-global-routing-helper.h>
 
 #define IP_BASE "10"
+#define IP_MASK "255.255.255.0"
+#define ID_CLIENTE_EN_CONTENEDOR_INTERFACES 1
 
 using namespace ns3;
 
@@ -31,5 +37,7 @@ public:
 private:
   // Almacena el numero de subredes almacenadas, para asignamiento de nuevas subredes
   uint16_t subredesAsignadas;
+  // Almacena la relacion "idCliente" - interfaces
+  std::map<uint32_t, Ipv4InterfaceContainer> interfacesParNodos;
 };
 
