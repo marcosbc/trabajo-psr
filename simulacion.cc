@@ -483,8 +483,7 @@ simulacion (
   // modelaran un sistema de llamadas en el que se envia un flujo de trafico
   // constante (que representara la voz en el destino respectivo)
   ApplicationContainer* appsLlam = new ApplicationContainer[2 * numClientes];
-  for (uint32_t idCentral = 0; idCentral < NUM_CENTRALES; idCentral++)
-  {
+  for (uint32_t idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
     // Identificador del cliente respecto a todas las centrales
     uint32_t idClienteTotal;
     for (uint32_t idCliente = 0; idCliente < numClientes; idCliente++) {
@@ -516,15 +515,18 @@ simulacion (
   // las graficas del programa
   Observador observador;
   for (uint32_t idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
+    // Identificador del cliente respecto a todas las centrales
+    uint32_t idClienteTotal;
     for (uint32_t idCliente = 0; idCliente < numClientes; idCliente++) {
+      idClienteTotal = (idCentral + 1) * idCliente;
       // Asociar las trazas de transmision de paquetes de cada cliente (no central)
-      appsLlam[idCliente].Get (0)
+      appsLlam[idClienteTotal].Get (0)
         ->GetObject<OnOffApplication> ()
         ->TraceConnectWithoutContext ("Tx", MakeCallback (&Observador::ActualizaTinicio,
                                                           &observador));
       // Establecer los tiempos de inicio y final de cada llamada
-      appsLlam[idCliente].Start (llamadas.GetStartTime (idCliente));
-      appsLlam[idCliente].Stop (llamadas.GetStopTime (idCliente));
+      appsLlam[idClienteTotal].Start (llamadas.GetStartTime (idClienteTotal));
+      appsLlam[idClienteTotal].Stop (llamadas.GetStopTime (idClienteTotal));
       // Asociar las trazas de recepcion de todos los sumideros
       appsSumidero[idCentral].Get (idCliente)
         ->GetObject<PacketSink> ()
@@ -535,6 +537,8 @@ simulacion (
 
   // ------------------- SIMULACION Y RECOPILACION DE DATOS --------------------
   NS_LOG_DEBUG ("Ejecutando simulacion");
+  // La simulacion debe parar en STOP_TIME
+  // Simulator::Stop (Time (STOP_TIME));
   // Lanzamos la simulacion
   Simulator::Run ();
   Simulator::Destroy ();
