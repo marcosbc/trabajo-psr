@@ -359,6 +359,7 @@ simulacion (
                    << probLlamVar << pLlam << pError << tasaLlam << sizePkt << tamCola);
 
   // -------------------------------- CENTRALES --------------------------------
+  NS_LOG_DEBUG ("Creando centrales");
   // Nodos de centrales
   NodeContainer centrales;
   centrales.Create (NUM_CENTRALES);
@@ -382,6 +383,7 @@ simulacion (
   dispositivosCentrales = enlacesCentrales.Install (centrales);
 
   // -------------------------------- CLIENTES ---------------------------------
+  NS_LOG_DEBUG ("Creando clientes");
   NodeContainer clientes[NUM_CENTRALES];
   // Configurar modelo de probabilidad de error de bits entre centrales
   Ptr<RateErrorModel> pErrorClienteCentral = CreateObject<RateErrorModel> ();
@@ -410,9 +412,9 @@ simulacion (
       paresClienteCentral[idCliente].Add (clientes[idCentral].Get (iteradorClientes));
       // Configurar los parametros del enlace: Tasa, retardo y errores
       enlacesClienteCentral[idCliente].SetDeviceAttribute ("DataRate",
-        DoubleValue (capacEnlace->GetValue ()));
+        DataRateValue (DataRate (capacEnlace->GetValue ())));
       enlacesClienteCentral[idCliente].SetChannelAttribute ("Delay",
-        DoubleValue (delayEnlace->GetValue ()));
+        TimeValue (MilliSeconds (delayEnlace->GetValue ())));
       enlacesClienteCentral[idCliente].SetDeviceAttribute ("ReceiveErrorModel",
         PointerValue (pErrorClienteCentral));
       // Instalar los dispositivos en los nodos
@@ -425,8 +427,8 @@ simulacion (
   // Los valores "duracionLlamadas" y "probLlamada" son variables aleatorias
   LlamadasHelper llamadas (numClientes, durLlamVar, tLlamVar, probLlamVar,
                            pLlam);
-
   // ------------------------- CONFIGURACIONES DE RED --------------------------
+  NS_LOG_DEBUG ("Instalando pila TCP/IP");
   // Instalamos la pila TCP/IP en todos los clientes y centrales
   InternetStackHelper pilaTcpIp;
   pilaTcpIp.Install (centrales);
@@ -454,6 +456,7 @@ simulacion (
   NS_LOG_DEBUG (direcciones.RoutingTables ());
 
   // ------------------------- APLICACIONES: SUMIDERO --------------------------
+  NS_LOG_DEBUG ("Instalando sumideros en clientes");
   // Cada cliente (que no central) tendran instalados un sumidero
   // Esto servira para puedan recibir los paquetes
   // Establecemos el sumidero en un puerto (APP_PORT)
@@ -467,6 +470,7 @@ simulacion (
   }
 
   // ------------------------- APLICACIONES: LLAMADAS --------------------------
+  NS_LOG_DEBUG ("Instalando aplicaciones de llamadas en clientes");
   // Cada cliente (que no central) tendran instalado un cliente de llamadas, que
   // modelaran un sistema de llamadas en el que se envia un flujo de trafico
   // constante (que representara la voz en el destino respectivo)
@@ -486,6 +490,7 @@ simulacion (
   }
 
   // ------------------------------- OBSERVADOR --------------------------------
+  NS_LOG_DEBUG ("Configurando observador");
   // El observador se encargara de analizar las trazas de transmision y
   // recepcion de paquetes de toda la red, sin interferir en el funcionamiento
   // de la misma, con el fin de obtener los datos requeridos para realizar
@@ -510,6 +515,7 @@ simulacion (
   }
 
   // ------------------- SIMULACION Y RECOPILACION DE DATOS --------------------
+  NS_LOG_DEBUG ("Ejecutando simulacion");
   // Lanzamos la simulacion
   Simulator::Run ();
   Simulator::Destroy ();

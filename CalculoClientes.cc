@@ -74,7 +74,7 @@ CalculoClientes::GetInitialValue ()
 {
   NS_LOG_FUNCTION_NOARGS ();
   NS_LOG_DEBUG ("Valor inicial de contador de clientes: " << contadorClientes);
-  return candidato;
+  return contadorClientes;
 }
 
 uint32_t
