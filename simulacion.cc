@@ -471,12 +471,20 @@ simulacion (
 
   // ------------------------- APLICACIONES: LLAMADAS --------------------------
   NS_LOG_DEBUG ("Instalando aplicaciones de llamadas en clientes");
+  // Inicializar las variables aleatorias a usar
+  Ptr<ConstantRandomVariable> toff = CreateObject<ConstantRandomVariable> ();
+  Ptr<ConstantRandomVariable> ton = CreateObject<ConstantRandomVariable> ();
+  // Queremos que siempre transmita datos durante el funcionamiento de la aplicacion
+  // Es decir, que "toff" siempre valga cero
+  toff->SetAttribute ("Constant", DoubleValue (0));
+  // El maximo valor posible para la transmision es, obviamente, STOP_TIME
+  ton->SetAttribute ("Constant", DoubleValue (Time (STOP_TIME).GetSeconds ()));
   // Cada cliente (que no central) tendran instalado un cliente de llamadas, que
   // modelaran un sistema de llamadas en el que se envia un flujo de trafico
   // constante (que representara la voz en el destino respectivo)
   ApplicationContainer* appsLlam = new ApplicationContainer[2 * numClientes];
   for (uint32_t idCliente = 0; idCliente < 2 * numClientes; idCliente++) {
-    BulkSendHelper clienteLlam (
+    OnOffHelper clienteLlam (
       "ns3::UdpSocketFactory",
       Address (InetSocketAddress (direcciones.GetIp (llamadas.GetIdDestino (idCliente)),
                                   APP_PORT))
@@ -484,6 +492,9 @@ simulacion (
     // Configurar tasa de transmision y tamanio de paquete
     clienteLlam.SetAttribute ("DataRate", DataRateValue (tasaLlam));
     clienteLlam.SetAttribute ("PacketSize", UintegerValue (sizePkt));
+    // Siempre transmitir datos
+    clienteLlam.SetAttribute ("OnTime", PointerValue (ton));
+    clienteLlam.SetAttribute ("OffTime", PointerValue (toff));
     // Instalar la aplicacion sobre un unico nodo
     // Notese que cada aplicacion tendra un destino distinto
     appsLlam[idCliente] = clienteLlam.Install (clientes[idCliente]);
@@ -500,7 +511,7 @@ simulacion (
     for (uint32_t idCliente = 0; idCliente < numClientes; idCliente++) {
       // Asociar las trazas de transmision de paquetes de cada cliente (no central)
       appsLlam[idCliente].Get (0)
-        ->GetObject<BulkSendApplication> ()
+        ->GetObject<OnOffApplication> ()
         ->TraceConnectWithoutContext ("Tx", MakeCallback (&Observador::ActualizaTinicio,
                                                           &observador));
       // Establecer los tiempos de inicio y final de cada llamada
