@@ -67,7 +67,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 
 // Configuracion de simulacion (en segundos)
 #define START_TIME "1s"
-#define STOP_TIME "100s"
+#define STOP_TIME "5s"
 
 struct RESULTADOS_SIMULACION {
   // Tanto por cien de llamadas consideradas validas
@@ -523,8 +523,8 @@ simulacion (
         ->TraceConnectWithoutContext ("Tx", MakeCallback (&Observador::ActualizaTinicio,
                                                           &observador));
       // Establecer los tiempos de inicio y final de cada llamada
-      appsLlam->Start (llamadas.GetStartTime (idCliente));
-      appsLlam->Stop (llamadas.GetStopTime (idCliente));
+      appsLlam[idCliente].Start (llamadas.GetStartTime (idCliente));
+      appsLlam[idCliente].Stop (llamadas.GetStopTime (idCliente));
       // Asociar las trazas de recepcion de todos los sumideros
       appsSumidero[idCentral].Get (idCliente)
         ->GetObject<PacketSink> ()
