@@ -127,6 +127,7 @@ uint32_t
 LlamadasHelper::GetIdDestino (uint32_t idCliente)
 {
   NS_LOG_FUNCTION (idCliente);
+  NS_LOG_DEBUG ("idDestino = " << registroLlamadas[idCliente].idDestino);
   return registroLlamadas[idCliente].idDestino;
 }
 
@@ -134,6 +135,7 @@ Time
 LlamadasHelper::GetStartTime (uint32_t idCliente)
 {
   NS_LOG_FUNCTION (idCliente);
+  NS_LOG_DEBUG ("startTime = " << registroLlamadas[idCliente].startTime);
   return registroLlamadas[idCliente].startTime;
 }
 
@@ -141,6 +143,7 @@ Time
 LlamadasHelper::GetStopTime (uint32_t idCliente)
 {
   NS_LOG_FUNCTION (idCliente);
+  NS_LOG_DEBUG ("stopTime = " << registroLlamadas[idCliente].stopTime);
   return registroLlamadas[idCliente].stopTime;
 }
 
@@ -178,7 +181,10 @@ LlamadasHelper::asignarLlamada (uint32_t idCliente1,
   Time tInicio (0);
   Time tFin (0);
   // Comprobar si se produce llamada durante la simulacion
-  if (probLlamadaValores->GetValue () >= probLlamadaEnSimulacion)
+  double comparadorProbLlam = probLlamadaValores->GetValue ();
+  NS_LOG_DEBUG ("probLlam = " << probLlamadaEnSimulacion << ", "
+                << "comparador = " << comparadorProbLlam);
+  if (comparadorProbLlam <= probLlamadaEnSimulacion)
   {
     // Asignar los tiempo de inicio y fin
     tInicio = Seconds (tInicioLlamadaValores->GetValue ());
