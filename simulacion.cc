@@ -34,6 +34,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 // Valores por defecto del escenario
 #define DEFAULT_CENTRALES_TASA "1Mbps" // Tasa de transmision entre centrales
 #define DEFAULT_CENTRALES_RETARDO "10ms" // Retardo entre centrales
+#define DEFAULT_CENTRALES_PERROR_BIT "0.000005" // Prob. error de bit entre centrales
 #define DEFAULT_CENTRALES_TAMCOLA 2
 
 // Valores por defecto del los clientes
@@ -47,6 +48,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 
 // Configuracion del escenario
 #define NUM_CENTRALES 2
+#define APP_PORT 5000
 
 // Configuracion de paquetes
 #define DEFAULT_TAM_PAQUETE 400
@@ -324,18 +326,166 @@ simulacion (
   Ptr<ExponentialRandomVariable> ton, Ptr<ExponentialRandomVariable> toff,
   double pError, DataRate tasaLlam, uint32_t sizePkt
 ) {
+  NS_LOG_FUNCTION (numClientes << capacEnlace << delayEnlace
+                   << ton << toff << pError << tasaLlam << sizePkt);
+  // Variable a usar para almacenar datos
   RESULTADOS_SIMULACION resultados;
-  resultados.porcenLlamValidas = 100.0 - numClientes * 0.01;
-  resultados.retardoMedioLlam = Time ("2ms");
 
-  /*
-  NodeContainer clientes
-  for (int i = 0; i < NUM_CENTRALES; i++) {
-    NodeContainer centrales
+  // -------------------------------- CENTRALES --------------------------------
+  // Nodos de centrales
+  NodeContainer centrales;
+  centrales.Create (NUM_CENTRALES);
+  // Definiciones: Enlaces y dispositivos de centrales
+  PointToPointHelper enlacesCentrales;
+  NetDeviceContainer dispositivosCentrales;
+  // Configurar modelo de probabilidad de error de bits entre centrales
+  Ptr<RateErrorModel> pErrorCentrales = CreateObject<RateErrorModel> ();
+  pErrorCentrales->SetUnit (RateErrorModel::ERROR_UNIT_BIT);
+  pErrorCentrales->SetRate (DEFAULT_CENTRALES_PERROR_BIT);
+  // Configurar los enlaces entre las centrales
+  enlacesCentrales.SetChannelAttribute ("DataRate",
+                                        StringValue (DEFAULT_CENTRALES_TASA));
+  enlacesCentrales.SetChannelAttribute ("Delay",
+                                        StringValue (DEFAULT_CENTRALES_RETARDO));
+  enlacesCentrales.SetChannelAttribute ("ReceiveErrorModel",
+                                        PointerValue (pErrorCentrales));
+  // El tamanio de cola sera variable
+  enlacesCentrales.SetQueue ("ns3::DropTailQueue", "MaxPackets", UintegerValue (tamCola));
+  // Crear el enlace entre las centrales
+  dispositivosCentrales = enlacesCentrales.Install (centrales);
+
+  // -------------------------------- CLIENTES ---------------------------------
+  NodeContainer clientes[NUM_CENTRALES];
+  // Configurar modelo de probabilidad de error de bits entre centrales
+  Ptr<RateErrorModel> pErrorClienteCentral = CreateObject<RateErrorModel> ();
+  pErrorClienteCentral->SetUnit (RateErrorModel::ERROR_UNIT_BIT);
+  pErrorClienteCentral->SetRate (DEFAULT_CLIENTES_PERROR_BIT);
+  // Configurar enlaces y dispositivos con la central (punto a punto)
+  // Notese que en total tendremos 2 * "numClientes" clientes
+  // Cada central tendra "numClientes" clientes (parametro de simulacion ())
+  NodeContainer* paresClienteCentral = new NodeContainer[2 * numClientes];
+  PointToPointHelper* enlacesClienteCentral = new PointToPointHelper[2 * numClientes];
+  NetDeviceContainer* dispClienteCentral = new NetDeviceContainer[2 * numClientes];
+  // La logica de creacion de clientes es la misma en las dos centrales
+  // Recorrer centrales y asociar nuevos nodos
+  for (int idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
+    clientes[idCentral].Create (numClientes + 1);
+    // Asignar los pares cliente-central
+    // De 0 a n-1 para la central 1, de n a 2n-1 para la central 2
+    for (int idCliente = 0; idCliente < numClientes; idCliente++) {
+      // Lograr una iteracion desde 0 hasta 2n - 1
+      int idCliente = idCliente * (idCentral + 1);
+      // Aniadir central al par cliente-central
+      paresClienteCentral[idCliente].Add (centrales.Get (idCentral));
+      // Lo mismo para clientes (un cliente distinto por par central cliente)
+      paresClienteCentral[idCliente].Add (clientes[idCentral].Get (idCliente));
+      // Configurar los parametros del enlace: Tasa, retardo y errores
+      enlacesClienteCentral[idCliente].SetChannelAttribute ("DataRate",
+        StringValue (capacEnlace.GetValue ()));
+      enlacesClienteCentral[idCliente].SetChannelAttribute ("Delay",
+        StringValue (delayEnlace.GetValue ()));
+      enlacesClienteCentral[idCliente].SetChannelAttribute ("ReceiveErrorModel",
+        PointerValue (pErrorClienteCentral));
+      // Instalar los dispositivos en los nodos
+      dispClienteCentral[idCliente] =
+        enlacesClienteCentral[idCliente].Install (paresClienteCentral[idCliente]);
+    }
+    // int idParClienteCentral
+  }
+  // Fin recorrido de centrales
+
+  // ------------------------- CONFIGURACIONES DE RED --------------------------
+  // Instalamos la pila TCP/IP en todos los clientes y centrales
+  InternetStackHelper pilaTcp;
+  pilaTcp.Install (centrales);
+  for (int idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
+    pilaTcp.Install (clientes[idCentral]);
+  }
+  // Asignamiento de IPs, delegada a una clase
+  DireccionamientoIpv4Helper direcciones;
+  RedIpv4 subredes[2 * numClientes + 1]; // Incluye una subred para centrales
+  // Red entre centrales (que es un poco especifica)
+  subredes[0] = direcciones.CreateSubnet (dispositivosCentrales);
+  for (int idCliente = 0; idCliente < 2 * numClientes; idCliente++) {
+    // Notese que la subred #0 es la que conecta las centrales
+    subredes[idCliente + 1] = direcciones.CreateSubnet (dispClienteCentral[idCliente]);
+  }
+  // Popular las tablas de enrutamiento, con el fin de que todos los clientes
+  // de una central puedan acceder a los que pertenecen a esta, y tambien a los
+  // clientes de la segunda central
+  Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
+  // Imprimir la estructura de la red
+  NS_LOG_DEBUG (direcciones.ToString ());
+  // Imprimir tablas de reenvio
+  NS_LOG_DEBUG (direcciones.RoutingTables ());
+
+  // ------------------------- APLICACIONES: SUMIDERO --------------------------
+  // Cada cliente (que no central) tendran instalados un sumidero
+  // Esto servira para puedan recibir los paquetes
+  // Establecemos el sumidero en un puerto (APP_PORT)
+  PacketSinkHelper sumidero ("ns3::UdpSocketFactory",
+                             Address (InetSocketAddress (Ipv4Address::GetAny (),
+                                                         APP_PORT)));
+  // Instalamos el sumidero sobre todos los clientes disponibles
+  for (int idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
+    ApplicationContainer appSumidero = sumidero.Install (clientes[idCentral]);
   }
 
+  // ---------------------- APLICACIONES: CLIENTES ON/OFF ----------------------
+  // Cada cliente (que no central) tendran instalado un cliente On/Off, que
+  // modelaran un sistema de llamadas
+  // Establecer IP destino aleatoria, al puerto del sumidero
+  OnOffHelper* clientesOnOff = new OnOffHelper[2 * numClientes];
+  ApplicationContainer* appsOnOff = new ApplicationContainer[2 * numClientes];
+  for (int idCliente = 0; idCliente < 2 * numClientes; idCliente++) {
+    clientesOnOff[idCliente]("ns3::UdpSocketFactory",
+                             Address (InetSocketAddress (direcciones.GetAny (idCliente),
+                                                         APP_PORT)));
+    // Configurar los tiempos de transmision y silencio de la aplicacion
+    clientesOnOff[idCliente].SetAttribute ("OnTime", PointerValue (ton));
+    clientesOnOff[idCliente].SetAttribute ("OffTime", PointerValue (toff));
+    // Configurar tasa de transmision y tamanio de paquete
+    clientesOnOff[idCliente].SetAttribute ("DataRate", DataRateValue (tasaLlam));
+    clientesOnOff[idCliente].SetAttribute ("PacketSize", UintegerValue (sizePkt));
+    // Instalar la aplicacion sobre un unico nodo
+    // Notese que cada aplicacion tendra un destino distinto
+    appsOnOff[idCliente] = clientesOnOff[idCliente].Install (clientes.Get (idCliente));
+  }
 
+  // ------------------------------- OBSERVADOR --------------------------------
+  // El observador se encargara de analizar las trazas de transmision y
+  // recepcion de paquetes de toda la red, sin interferir en el funcionamiento
+  // de la misma, con el fin de obtener los datos requeridos para realizar
+  // las graficas del programa
+  Observador observador;
+  for (int idCliente = 0; idCliente < numClientes; idCliente++) {
+    // Asociar las trazas de transmision de paquetes de cada cliente (no central)
+    appsOnOff[idCliente].Get (0)
+      ->GetObject<OnOffApplication> ()
+      ->TraceConnectWithoutContext ("Tx", MakeCallback (&Observador::ActualizaTinicio,
+                                                        &observa));
+    // Asociar las trazas de recepcion de todos los sumideros
+    appSumidero.Get (idCliente)
+      ->GetObject<PacketSink>
+      ->TraceConnectWithoutContext ("Rx", MakeCallback (&Observador::ActualizaRetardos));
+    // TODO: app.Start () y app.Stop () (???)
+  }
 
+  // ------------------- SIMULACION Y RECOPILACION DE DATOS --------------------
+  // Lanzamos la simulacion
+  Simulator::Run ();
+  Simulator::Destroy ();
+  // Insertar resultados en la estructura deseada
+  resultados = {
+    // Porcentaje de llamadas validas
+    observador.GetMediaCorrectos (),
+    // Retardo medio de llamada
+    observador.GetMediaRetardos ()
+  };
+  return resultados;
+
+  /* LOGICA ANTERIOR */
+  /*
   NodeContainer p2pNodes1;
   p2pNodes1.Create (nClientesPorCentral+1);//Creamos todos los nodos junto con las centrales
   NodeContainer p2pNodes2;
@@ -357,7 +507,6 @@ simulacion (
       central2[nodo].Add(p2pNodes2.Get(0));
       central2[nodo].Add(p2pNodes2.Get(nodo+1));
     }
-
 
   PointToPointHelper pointToPointCentrales;
   pointToPointCentrales.SetDeviceAttribute ("DataRate", StringValue (DEFAULT_TASA_CENTRALES));
@@ -514,7 +663,5 @@ simulacion (
   *(correctos)=observador.GetMediaCorrectos()*100;
   NS_LOG_INFO ("Porcentaje Correcto: " << observador.GetMediaCorrectos()*100 << "%");
   */
-
-  return resultados;
 }
 
