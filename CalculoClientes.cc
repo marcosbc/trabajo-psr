@@ -60,8 +60,7 @@ CalculoClientes::CalculoClientes (std::string tasaCentrales, std::string tasaPro
   // Definimos el valor inicial del contador de clientes
   // Queremos que sea divisible por 10, de ahi que se realice en dos pasos
   // Esto se consigue gracias al redondeo en C++ al usar tipos enteros
-  contadorClientes = kbpsCentrales / (kbpsProto * CALC_BASE);
-  contadorClientes = contadorClientes * CALC_BASE;
+  contadorClientes = CALC_BASE;
   NS_LOG_DEBUG ("Valor inicial de contadorClientes: " << contadorClientes);
   // El candidato se inicia a cero y debe ser distinto al contador en la primera iteracion
   candidato = 0;

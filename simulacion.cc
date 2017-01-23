@@ -253,8 +253,6 @@ main (int argc, char *argv[])
         DEFAULT_CENTRALES_TASA, REQUISITO_LLAM_TASA
       );
       uint32_t numClientes = instanciaCalculoClientes.GetInitialValue ();
-      // Utilizado exclusivamente para marcar el final del eje X en graficas
-      numClientesMax = numClientes;
       // Cada iteracion representara un distinto punto en el eje X de la grafica
       while (! instanciaCalculoClientes.FoundValue ()) {
         NS_LOG_DEBUG ("Iteracion de obtencion de porcenLlamValidas con tamCola: " << tamCola << ", clientes: " << numClientes << " clientes");
@@ -295,8 +293,11 @@ main (int argc, char *argv[])
         if (numClientesMax < numClientes) {
           numClientesMax = numClientes;
         }
+        NS_LOG_DEBUG ("Valores medios con " << numClientesMax << " clientes: "
+                      << "porcenLlamValidas: " << porcenLlamValidas.Mean () << ", "
+                      << "retardoMedioLlam: " << retardoMedioLlam.Mean ());
         // Esta parte se dedica a especificamente a ejecutar el algoritmo
-        // El algoritmo se encarga de encontrar un valor optimo de nClientesPorCentral
+        // El algoritmo se encarga de encontrar un valor optimo de numClientes
         if (cumpleRequisitos (porcenLlamValidas.Mean ())) {
           NS_LOG_DEBUG ("Cumplimiento de requisitos con " << numClientes << " clientes");
           numClientes = instanciaCalculoClientes.GetValue ();
@@ -342,8 +343,7 @@ main (int argc, char *argv[])
                                             (iteradorGraficas->second).ic);
       }
       // Aniadir curvas a las graficas
-      graficas[GRAFICA_CUMPLIM].AddDataset (curvas [GRAFICA_CUMPLIM][tamCola - 1]);
-      graficas[GRAFICA_RETARDO].AddDataset (curvas [GRAFICA_RETARDO][tamCola - 1]);
+      graficas[idGrafica].AddDataset (curvas [idGrafica][tamCola - 1]);
     }
     // Creacion del fichero
     std::ostringstream tituloFichero;
