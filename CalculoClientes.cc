@@ -52,11 +52,8 @@ main (void)
 */
 
 // Constructor de la clase
-CalculoClientes::CalculoClientes (std::string tasaCentrales, std::string tasaProto)
+CalculoClientes::CalculoClientes ()
 {
-  NS_LOG_FUNCTION (tasaCentrales << tasaProto);
-  uint32_t kbpsCentrales = (DataRate (tasaCentrales)).GetBitRate () / 1000;
-  uint32_t kbpsProto = (DataRate (tasaProto)).GetBitRate () / 1000;
   // Definimos el valor inicial del contador de clientes
   // Queremos que sea divisible por 10, de ahi que se realice en dos pasos
   // Esto se consigue gracias al redondeo en C++ al usar tipos enteros

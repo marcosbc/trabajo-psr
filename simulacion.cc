@@ -249,9 +249,7 @@ main (int argc, char *argv[])
       NS_LOG_DEBUG ("Iteracion tamanio de cola: " << tamCola);
       // Configurar el algoritmo de calculo de numero de clientes
       // Servira para obtener los valores de numero de clientes para la grafica
-      CalculoClientes instanciaCalculoClientes (
-        DEFAULT_CENTRALES_TASA, REQUISITO_LLAM_TASA
-      );
+      CalculoClientes instanciaCalculoClientes;
       uint32_t numClientes = instanciaCalculoClientes.GetInitialValue ();
       // Cada iteracion representara un distinto punto en el eje X de la grafica
       while (! instanciaCalculoClientes.FoundValue ()) {

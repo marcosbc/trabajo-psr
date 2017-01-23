@@ -19,7 +19,7 @@ class CalculoClientes
 {
 public:
   // Constructor de la clase
-  CalculoClientes (std::string enlaceCentralesKbps, std::string protocoloKbps);
+  CalculoClientes ();
   uint32_t GetInitialValue ();
   uint32_t GetValue ();
   uint32_t ResetValue ();
