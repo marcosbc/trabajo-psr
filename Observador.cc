@@ -66,7 +66,7 @@ void Observador::ActualizaRetardos(Ptr<const Packet> paquete, const Address & di
       if(tiempo < 140000)
 	{
 	  llamadasCorrectas++;
-	  NS_LOG_DEBUG("Numero de llamas que cumplen la condicion de retardo: " << llamadasCorrectas);
+	  NS_LOG_DEBUG("Numero de llamadas que cumplen la condicion de retardo: " << llamadasCorrectas);
 	}
            
     }
@@ -109,7 +109,7 @@ double Observador::GetMediaCorrectos()
       NS_LOG_WARN ("No se ha envido ningún paquete.");
     }
   else
-    mediacorrectos=double(llamadasCorrectas)/numPaquetesEnviados;
+    mediacorrectos=100 * double(llamadasCorrectas)/numPaquetesEnviados;
 
   NS_LOG_DEBUG ("Numero de paquetes totales enviados: " << numPaquetesEnviados);
   return mediacorrectos;
