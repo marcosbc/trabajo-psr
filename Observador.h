@@ -4,7 +4,7 @@
  * AUTORES:
  * - Desiree Garcia Soriano
  * - Marcos Bjorkelund
- * - Ana Lobon Garcia
+ * - Ana Lobon Roldan
  * - Juan Lara Gavira
  * DESCRIPCION: TODO
  */
