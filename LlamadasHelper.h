@@ -41,6 +41,8 @@ public:
   // Obtener en formato cadena la asignacion de nodos
   std::string GetAsignacion ();
 private:
+  // Almacena la lista de nodos con llamada ya asignada
+  std::map<uint32_t, bool> clientesAsignados;
   // Almacena las llamadas en curso, por cliente
   // Eso implica que para cada llamada habran dos registros, uno por cada
   // cliente final
