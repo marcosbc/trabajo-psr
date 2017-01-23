@@ -11,6 +11,8 @@
 #include <ns3/core-module.h>
 #include <ns3/data-rate.h>
 
+#define CALC_BASE 10
+
 using namespace ns3;
 
 class CalculoClientes
@@ -22,9 +24,11 @@ public:
   uint32_t GetValue ();
   uint32_t ResetValue ();
   bool FoundValue ();
+  void Abort ();
 private:
   uint32_t contadorClientes;
   uint32_t candidato;
   uint32_t iterador;
+  bool abortar;
 };
 
