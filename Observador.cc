@@ -105,14 +105,14 @@ double Observador::GetMediaCorrectos()
 
   if((numPaquetesEnviados) == 0)
     {
-      mediacorrectos=0;
+      mediacorrectos=1;
       NS_LOG_WARN ("No se ha envido ningún paquete.");
     }
   else
-    mediacorrectos=100 * double(llamadasCorrectas)/numPaquetesEnviados;
+    mediacorrectos=double(llamadasCorrectas)/numPaquetesEnviados;
 
   NS_LOG_DEBUG ("Numero de paquetes totales enviados: " << numPaquetesEnviados);
-  return mediacorrectos;
+  return 100 * mediacorrectos;
 }
 
 //Funcion que compueba si la estructura esta vacia o no.

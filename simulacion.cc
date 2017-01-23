@@ -49,7 +49,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 // TODO Poner valor no nulo
 #define DEFAULT_CLIENTES_PERROR_BIT 0.0
 // Probabilidad de que un cliente realice una llamada durante la simulacion
-#define DEFAULT_CLIENTES_PROB_LLAMADA 0.1
+#define DEFAULT_CLIENTES_PROB_LLAMADA 0.10
 
 // Configuracion del escenario
 #define NUM_CENTRALES 2
@@ -63,13 +63,13 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 #define GRAFICA_CUMPLIM 0
 #define GRAFICA_RETARDO 1
 // Constantes para el intervalo de confianza.
-#define IC_SIMULACIONES_POR_PUNTO 8
+#define IC_SIMULACIONES_POR_PUNTO 10
 #define IC_PORCENTAJE 95
 #define IC_PONDERACION 2.2622
 
 // Configuracion de simulacion (en segundos)
 #define START_TIME "1s"
-#define STOP_TIME "5s"
+#define STOP_TIME "100s"
 
 struct RESULTADOS_SIMULACION {
   // Tanto por cien de llamadas consideradas validas
