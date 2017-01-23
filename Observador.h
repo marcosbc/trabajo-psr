@@ -28,19 +28,19 @@ public:
   // Metodos de la clase Observador
 
   //Funcion asociada a la traza Tx, que almacena el tiempo de inicio del envio de un paquete
-  void ActualizaTinicio(Ptr<const Packet> paquete);
+  void ActualizaTinicio (Ptr<const Packet> paquete);
 
   //Funcion asociada a la traza Rx, que calcula el retardo de un paquete
-  void ActualizaRetardos(Ptr<const Packet> paquete, const Address & direccion );
+  void ActualizaRetardos (Ptr<const Packet> paquete, const Address & direccion);
 
   //Funcion que devuelve la media de los retardos de los paquetes enviados
-  Time GetMediaRetardos();
+  Time GetMediaRetardos ();
 
   //Funcion que devuelve la media de los paquetes correctos
-  double GetMediaCorrectos();
+  double GetMediaCorrectos ();
 
   //Funcion que compueba si la estructura esta vacia o no
-  void CompruebaEstructura();
+  void CompruebaEstructura ();
 
 
 
@@ -48,9 +48,9 @@ private:
 
   // Variables de la clase Observador
 
-  //Contiene el numero de paquetes enviados 
-   uint32_t numPaquetesEnviados;
-  
+  //Contiene el numero de paquetes enviados
+  uint32_t numPaquetesEnviados;
+
   //Variable que almacena los valores de los retardos
   Average<double> retardos;
 
