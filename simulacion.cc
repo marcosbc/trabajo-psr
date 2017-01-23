@@ -26,10 +26,12 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("Trabajo");
 
+// Descomentar para activar el modo de validacion
+
 // Definicion de requisitos
 #define REQUISITO_LLAM_TASA "64kbps"
 #define REQUISITO_LLAM_RETARDO_MAX "140ms"
-#define REQUISITO_PORCEN_LLAM_CORRECTAS 99
+#define REQUISITO_PORCEN_LLAM_CORRECTAS 90
 
 // Valores por defecto del escenario
 #define DEFAULT_CENTRALES_TASA "1Mbps" // Tasa de transmision entre centrales
@@ -60,6 +62,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 #define NUM_GRAFICAS 2
 #define GRAFICA_CUMPLIM 0
 #define GRAFICA_RETARDO 1
+#define AUMENTO_NUM_CLIENTES_POR_ITERACION 10
 // Constantes para el intervalo de confianza.
 #define IC_SIMULACIONES_POR_PUNTO 10
 #define IC_PORCENTAJE 95
@@ -68,6 +71,43 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 // Configuracion de simulacion (en segundos)
 #define START_TIME "1s"
 #define STOP_TIME "100s"
+
+#define VALIDACION
+// Modo validacion
+#ifdef VALIDACION
+// Para redefinir constantes, eliminar las antiguas
+// Escenario
+#undef DEFAULT_CENTRALES_TASA
+#undef DEFAULT_CENTRALES_RETARDO
+#undef DEFAULT_CENTRALES_TAMCOLA
+#undef AUMENTO_NUM_CLIENTES_POR_ITERACION
+// Clientes
+#undef DEFAULT_NUM_CLIENTES
+#undef DEFAULT_CLIENTES_TASA
+#undef DEFAULT_CLIENTES_RETARDO
+#undef DEFAULT_CLIENTES_PERROR_BIT
+#undef DEFAULT_CLIENTES_PROB_LLAMADA
+// Paquetes
+#undef DEFAULT_TAM_PAQUETE
+// Simulacion
+#undef STOP_TIME
+// Definir las nuevas
+// Escenario
+#define DEFAULT_CENTRALES_TASA "1536kbps"
+#define DEFAULT_CENTRALES_RETARDO "1ms"
+#define DEFAULT_CENTRALES_TAMCOLA 1
+#define AUMENTO_NUM_CLIENTES_POR_ITERACION 4
+// Clientes
+#define DEFAULT_NUM_CLIENTES 20
+#define DEFAULT_CLIENTES_TASA "100Mbps"
+#define DEFAULT_CLIENTES_PROB_LLAMADA 1.0
+#define DEFAULT_CLIENTES_PERROR_BIT 0
+#define DEFAULT_CLIENTES_RETARDO "2ms"
+// Paquetes
+#define DEFAULT_TAM_PAQUETE 400
+// Simulacion
+#define STOP_TIME "40s"
+#endif
 
 // Punto Y de una grafica
 typedef struct {
@@ -116,7 +156,7 @@ main (int argc, char *argv[])
 
   // Modo de simulacion recorriendo el numero de clientes existentes hasta llegar
   // a un limite
-  bool modoSimulacionClientes = true;
+  bool modoSimulacionClientes = ! modoCalculoClientes;
 
   // Configuracion de escenario
   uint32_t nClientesPorCentral = DEFAULT_NUM_CLIENTES;
@@ -138,8 +178,6 @@ main (int argc, char *argv[])
   CommandLine cmd;
   cmd.AddValue("calculoClientes", "Modo de calculo de num de clientes optimo por central",
                modoCalculoClientes);
-  cmd.AddValue("simulacionClientes", "Modo de simulacion de clientes desde 10 hasta nClientesPorCentral (de 10 en 10)",
-               modoSimulacionClientes);
   cmd.AddValue("nClientesPorCentral", "Numero de clientes por central",
                nClientesPorCentral);
   cmd.AddValue("conex", "Velocidad de conexion media de clientes",
@@ -263,7 +301,7 @@ main (int argc, char *argv[])
     } else {
       // Modo de simulacion: Queremos simular todos los valores de numCliente
       // hasta nClientesPorCentral
-      numClientes = 10;
+      numClientes = 0;
     }
     // Cada iteracion representara un distinto punto en el eje X de la grafica
     // Soportar los dos modos de simulacion: Calculo de clientes optimo y simulacion de clientes
@@ -274,7 +312,7 @@ main (int argc, char *argv[])
       Average<double> porcenLlamValidas;
       Average<double> retardoMedioLlam;
       double IC[NUM_GRAFICAS];
-      for (int simul = 0; simul < IC_SIMULACIONES_POR_PUNTO; simul++) {
+      for (int simul = 0; simul < IC_SIMULACIONES_POR_PUNTO;) {
         NS_LOG_DEBUG ("Iteracion IC: " << simul);
         // Ejecutar las simulaciones y obtener los datos
         RESULTADOS_SIMULACION result = simulacion (
@@ -283,11 +321,17 @@ main (int argc, char *argv[])
           clientesProbErrorBit, protocoloTasa, tamPaquete, tamCola
         );
         contadorSimulaciones++;
-        NS_LOG_DEBUG ("Resultado simulacion " << contadorSimulaciones << ": "
+        NS_LOG_DEBUG ("Resultado simulacion " << contadorSimulaciones
+          << " (" << simul <<  "): "
           << "porcenLlamValidas = " << result.porcenLlamValidas << "%, "
           << "retardoMedioLlam = " << result.retardoMedioLlam.GetMicroSeconds () / 1000.0 << "ms");
-        porcenLlamValidas.Update (result.porcenLlamValidas);
-        retardoMedioLlam.Update (result.retardoMedioLlam.GetMicroSeconds () / 1000.0);
+        // TODO comentar
+        if (operator< (result.retardoMedioLlam, operator* (Time (REQUISITO_LLAM_RETARDO_MAX), 2)))
+        {
+          simul++;
+          porcenLlamValidas.Update (result.porcenLlamValidas);
+          retardoMedioLlam.Update (result.retardoMedioLlam.GetMicroSeconds () / 1000.0);
+        }
       }
       // Calcular el intervalo de confianza
       IC[GRAFICA_CUMPLIM] = IC_PONDERACION * sqrt (porcenLlamValidas.Var () / IC_SIMULACIONES_POR_PUNTO);
@@ -298,11 +342,19 @@ main (int argc, char *argv[])
         IC[GRAFICA_CUMPLIM]
       };
       valoresGraficas[GRAFICA_CUMPLIM][tamCola - 1][numClientes] = valoresGrafCumplim;
+      NS_LOG_INFO ("Aniadiendo puntos para grafica de cumplimiento de llamadas: "
+                   << "(" << numClientes << ", "
+                   << porcenLlamValidas.Mean () << ", "
+                   << IC[GRAFICA_CUMPLIM] << ")");
       PUNTO_Y valoresGrafRetardo = {
         retardoMedioLlam.Mean (),
         IC[GRAFICA_RETARDO]
       };
       valoresGraficas[GRAFICA_RETARDO][tamCola - 1][numClientes] = valoresGrafRetardo;
+      NS_LOG_INFO ("Aniadiendo puntos para grafica de retardo: "
+                   << "(" << numClientes << ", "
+                   << retardoMedioLlam.Mean () << ", "
+                   << IC[GRAFICA_RETARDO] << ")");
       // Crearemos una recta representando el requisito de llamadas validas
       if (numClientesMax < numClientes) {
         numClientesMax = numClientes;
@@ -323,10 +375,12 @@ main (int argc, char *argv[])
         }
       } else {
         // Modo de simulacion, incrementar clientes de 10 en 10
-        numClientes += 10;
+        numClientes += AUMENTO_NUM_CLIENTES_POR_ITERACION;
       }
     }
-    NS_LOG_INFO ("Encontrado optimo numero de clientes (tamCola = " << tamCola << "): " << numClientes);
+    if (modoCalculoClientes) {
+      NS_LOG_INFO ("Encontrado optimo numero de clientes (tamCola = " << tamCola << "): " << numClientes);
+    }
     // Fin ejecucion del algoritmo
   }
   // Fin de recorrido de las curvas
@@ -441,7 +495,7 @@ simulacion (
   // La logica de creacion de clientes es la misma en las dos centrales
   // Recorrer centrales y asociar nuevos nodos
   for (uint32_t idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
-    clientes[idCentral].Create (numClientes + 1);
+    clientes[idCentral].Create (numClientes);
     // Asignar los pares cliente-central
     // De 0 a n-1 para la central 1, de n a 2n-1 para la central 2
     for (uint32_t iteradorClientes = 0;
@@ -570,8 +624,16 @@ simulacion (
         ->TraceConnectWithoutContext ("Tx", MakeCallback (&Observador::ActualizaTinicio,
                                                           &observador));
       // Establecer los tiempos de inicio y final de cada llamada
-      appsLlam[idClienteTotal].Start (llamadas.GetStartTime (idClienteTotal));
-      appsLlam[idClienteTotal].Stop (llamadas.GetStopTime (idClienteTotal));
+      Time llamStartTime = llamadas.GetStartTime (idClienteTotal);
+      Time llamStopTime = llamadas.GetStopTime (idClienteTotal);
+      #ifdef VALIDACION
+      // En el modo de validacion, las llamadas duraran desde el principio
+      // de la simulacion, hasta el final de esta
+      llamStartTime = Time (START_TIME);
+      llamStopTime = Time (STOP_TIME);
+      #endif
+      appsLlam[idClienteTotal].Start (llamStartTime);
+      appsLlam[idClienteTotal].Stop (llamStopTime);
       // Asociar las trazas de recepcion de todos los sumideros
       appsSumidero[idCentral].Get (idCliente)
         ->GetObject<PacketSink> ()
@@ -582,6 +644,8 @@ simulacion (
 
   // ------------------- SIMULACION Y RECOPILACION DE DATOS --------------------
   NS_LOG_DEBUG ("Ejecutando simulacion");
+  // Activar la impresion de paquetes, para poder usar Packet::Print ()
+  ns3::Packet::EnablePrinting ();
   // La simulacion debe parar en STOP_TIME
   // Simulator::Stop (Time (STOP_TIME));
   // Lanzamos la simulacion
