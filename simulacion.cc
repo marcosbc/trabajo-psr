@@ -36,7 +36,8 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 // Valores por defecto del escenario
 #define DEFAULT_CENTRALES_TASA "1Mbps" // Tasa de transmision entre centrales
 #define DEFAULT_CENTRALES_RETARDO "10ms" // Retardo entre centrales
-#define DEFAULT_CENTRALES_PERROR_BIT 0.000005 // Prob. error de bit entre centrales
+// TODO Poner valor no nulo
+#define DEFAULT_CENTRALES_PERROR_BIT 0.0 // Prob. error de bit entre centrales
 #define DEFAULT_CENTRALES_TAMCOLA 2
 
 // Valores por defecto del los clientes
@@ -45,7 +46,8 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 #define DEFAULT_CLIENTES_TASA "1Mbps"
 #define DEFAULT_CLIENTES_RETARDO "2ms"
 #define DEFAULT_CLIENTES_DURACION_LLAMADA "5s"
-#define DEFAULT_CLIENTES_PERROR_BIT 0.00005
+// TODO Poner valor no nulo
+#define DEFAULT_CLIENTES_PERROR_BIT 0.0
 // Probabilidad de que un cliente realice una llamada durante la simulacion
 #define DEFAULT_CLIENTES_PROB_LLAMADA 0.1
 
