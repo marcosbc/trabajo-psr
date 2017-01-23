@@ -489,7 +489,7 @@ simulacion (
     // Identificador del cliente respecto a todas las centrales
     uint32_t idClienteTotal;
     for (uint32_t idCliente = 0; idCliente < numClientes; idCliente++) {
-      idClienteTotal = (idCentral + 1) * idCliente;
+      idClienteTotal = idCentral * numClientes + idCliente;
       // Crear la aplicacion, con el destino escogido en "LlamadasHelper"
       OnOffHelper clienteLlam (
         "ns3::UdpSocketFactory",
@@ -520,7 +520,7 @@ simulacion (
     // Identificador del cliente respecto a todas las centrales
     uint32_t idClienteTotal;
     for (uint32_t idCliente = 0; idCliente < numClientes; idCliente++) {
-      idClienteTotal = (idCentral + 1) * idCliente;
+      idClienteTotal = idCentral * numClientes + idCliente;
       // Asociar las trazas de transmision de paquetes de cada cliente (no central)
       appsLlam[idClienteTotal].Get (0)
         ->GetObject<OnOffApplication> ()

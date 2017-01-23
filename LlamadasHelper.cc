@@ -198,8 +198,8 @@ LlamadasHelper::asignarLlamada (uint32_t idCliente1,
                    << duracionLlamadaValores << tInicioLlamadaValores
                    << probLlamadaValores << probLlamadaEnSimulacion);
   // Por defecto no habra llamada
-  Time tInicio (0);
-  Time tFin (0);
+  Time tInicio ("1ms");
+  Time tFin ("1ms");
   // Comprobar si se produce llamada durante la simulacion
   double comparadorProbLlam = probLlamadaValores->GetValue ();
   NS_LOG_DEBUG ("probLlam = " << probLlamadaEnSimulacion << ", "
