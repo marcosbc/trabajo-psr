@@ -47,7 +47,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 // TODO Poner valor no nulo
 #define DEFAULT_CLIENTES_PERROR_BIT 0.0
 // Probabilidad de que un cliente realice una llamada durante la simulacion
-#define DEFAULT_CLIENTES_PROB_LLAMADA 0.4
+#define DEFAULT_CLIENTES_PROB_LLAMADA 0.1
 
 // Configuracion del escenario
 #define NUM_CENTRALES 2
