@@ -108,9 +108,15 @@ main (int argc, char *argv[])
   // Numero de clientes maximo simulado, para representar la recta de requisitos
   uint32_t numClientesMax = 0;
 
-  // Modo de simulacion
-  // TODO: Cambiar a false
-  bool modoCalculoClientes = true;
+  // Modo de calculo de clientes
+  // Obtiene un valor aproximado (redondeado a 10) del numero de clientes maximo
+  // que soportaria una central, hasta que empiecen a producirse incumplimiento
+  // del SLA de llamadas (definidas como requisitos anteriormente)
+  bool modoCalculoClientes = false;
+
+  // Modo de simulacion recorriendo el numero de clientes existentes hasta llegar
+  // a un limite
+  bool modoSimulacionClientes = true;
 
   // Configuracion de escenario
   uint32_t nClientesPorCentral = DEFAULT_NUM_CLIENTES;
@@ -132,6 +138,8 @@ main (int argc, char *argv[])
   CommandLine cmd;
   cmd.AddValue("calculoClientes", "Modo de calculo de num de clientes optimo por central",
                modoCalculoClientes);
+  cmd.AddValue("simulacionClientes", "Modo de simulacion de clientes desde 10 hasta nClientesPorCentral (de 10 en 10)",
+               modoSimulacionClientes);
   cmd.AddValue("nClientesPorCentral", "Numero de clientes por central",
                nClientesPorCentral);
   cmd.AddValue("conex", "Velocidad de conexion media de clientes",
@@ -153,6 +161,10 @@ main (int argc, char *argv[])
   // Tratar los valores obtenidos/modificados por linea de comandos
   // Comprueba que el numero de clientes no sea 0, si lo fuera lo pone a 1.
   nClientesPorCentral = nClientesPorCentral <= 0 ? 1 : nClientesPorCentral;
+  // Solo permitir un modo de simulacion a la vez
+  if (modoSimulacionClientes) {
+    modoCalculoClientes = false;
+  }
 
   // Construir cadena de parametros de entrada usada en logs y graficas
   std::ostringstream parametrosEntrada;
@@ -239,61 +251,66 @@ main (int argc, char *argv[])
     }
   }
 
-  // Modo de calculo de clientes
-  // Obtiene un valor aproximado (redondeado a 10) del numero de clientes maximo
-  // que soportaria una central, hasta que empiecen a producirse incumplimiento
-  // del SLA de llamadas (definidas como requisitos anteriormente)
-  if (modoCalculoClientes) {
-    // Cada grafica tendra distintas curvas, una por tamanio de cola
-    for (uint32_t tamCola = 1; tamCola <= DEFAULT_CENTRALES_TAMCOLA; tamCola++) {
-      NS_LOG_DEBUG ("Iteracion tamanio de cola: " << tamCola);
+  // Cada grafica tendra distintas curvas, una por tamanio de cola
+  uint32_t numClientes;
+  for (uint32_t tamCola = 1; tamCola <= DEFAULT_CENTRALES_TAMCOLA; tamCola++) {
+    NS_LOG_DEBUG ("Iteracion tamanio de cola: " << tamCola);
+    CalculoClientes instanciaCalculoClientes;
+    if (modoCalculoClientes) {
       // Configurar el algoritmo de calculo de numero de clientes
       // Servira para obtener los valores de numero de clientes para la grafica
-      CalculoClientes instanciaCalculoClientes;
-      uint32_t numClientes = instanciaCalculoClientes.GetInitialValue ();
-      // Cada iteracion representara un distinto punto en el eje X de la grafica
-      while (! instanciaCalculoClientes.FoundValue ()) {
-        NS_LOG_DEBUG ("Iteracion de obtencion de porcenLlamValidas con tamCola: " << tamCola << ", clientes: " << numClientes << " clientes");
-        // Obtener punto e IC segun numero de clientes analizado
-        Average<double> porcenLlamValidas;
-        Average<double> retardoMedioLlam;
-        double IC[NUM_GRAFICAS];
-        for (int simul = 0; simul < IC_SIMULACIONES_POR_PUNTO; simul++) {
-          NS_LOG_DEBUG ("Iteracion IC: " << simul);
-          // Ejecutar las simulaciones y obtener los datos
-          RESULTADOS_SIMULACION result = simulacion (
-            numClientes, clientesCapacidadEnlace, clientesRetardo,
-            durLlamVar, tLlamVar, probLlamVar, clientesProbLlam,
-            clientesProbErrorBit, protocoloTasa, tamPaquete, tamCola
-          );
-          contadorSimulaciones++;
-          NS_LOG_DEBUG ("Resultado simulacion " << contadorSimulaciones << ": "
-            << "porcenLlamValidas = " << result.porcenLlamValidas << "%, "
-            << "retardoMedioLlam = " << result.retardoMedioLlam.GetMicroSeconds () / 1000.0 << "ms");
-          porcenLlamValidas.Update (result.porcenLlamValidas);
-          retardoMedioLlam.Update (result.retardoMedioLlam.GetMicroSeconds () / 1000.0);
-        }
-        // Calcular el intervalo de confianza
-        IC[GRAFICA_CUMPLIM] = IC_PONDERACION * sqrt (porcenLlamValidas.Var () / IC_SIMULACIONES_POR_PUNTO);
-        IC[GRAFICA_RETARDO] = IC_PONDERACION * sqrt (retardoMedioLlam.Var () / IC_SIMULACIONES_POR_PUNTO);
-        // Aniadir punto a la curva
-        PUNTO_Y valoresGrafCumplim = {
-          porcenLlamValidas.Mean (),
-          IC[GRAFICA_CUMPLIM]
-        };
-        valoresGraficas[GRAFICA_CUMPLIM][tamCola - 1][numClientes] = valoresGrafCumplim;
-        PUNTO_Y valoresGrafRetardo = {
-          retardoMedioLlam.Mean (),
-          IC[GRAFICA_RETARDO]
-        };
-        valoresGraficas[GRAFICA_RETARDO][tamCola - 1][numClientes] = valoresGrafRetardo;
-        // Crearemos una recta representando el requisito de llamadas validas
-        if (numClientesMax < numClientes) {
-          numClientesMax = numClientes;
-        }
-        NS_LOG_DEBUG ("Valores medios con " << numClientesMax << " clientes: "
-                      << "porcenLlamValidas: " << porcenLlamValidas.Mean () << ", "
-                      << "retardoMedioLlam: " << retardoMedioLlam.Mean ());
+      numClientes = instanciaCalculoClientes.GetInitialValue ();
+    } else {
+      // Modo de simulacion: Queremos simular todos los valores de numCliente
+      // hasta nClientesPorCentral
+      numClientes = 10;
+    }
+    // Cada iteracion representara un distinto punto en el eje X de la grafica
+    // Soportar los dos modos de simulacion: Calculo de clientes optimo y simulacion de clientes
+    while ((modoCalculoClientes && ! instanciaCalculoClientes.FoundValue ())
+           || (modoSimulacionClientes && numClientes <= nClientesPorCentral)) {
+      NS_LOG_DEBUG ("Iteracion de obtencion de porcenLlamValidas con tamCola: " << tamCola << ", cliente: " << numClientes);
+      // Obtener punto e IC segun numero de clientes analizado
+      Average<double> porcenLlamValidas;
+      Average<double> retardoMedioLlam;
+      double IC[NUM_GRAFICAS];
+      for (int simul = 0; simul < IC_SIMULACIONES_POR_PUNTO; simul++) {
+        NS_LOG_DEBUG ("Iteracion IC: " << simul);
+        // Ejecutar las simulaciones y obtener los datos
+        RESULTADOS_SIMULACION result = simulacion (
+          numClientes, clientesCapacidadEnlace, clientesRetardo,
+          durLlamVar, tLlamVar, probLlamVar, clientesProbLlam,
+          clientesProbErrorBit, protocoloTasa, tamPaquete, tamCola
+        );
+        contadorSimulaciones++;
+        NS_LOG_DEBUG ("Resultado simulacion " << contadorSimulaciones << ": "
+          << "porcenLlamValidas = " << result.porcenLlamValidas << "%, "
+          << "retardoMedioLlam = " << result.retardoMedioLlam.GetMicroSeconds () / 1000.0 << "ms");
+        porcenLlamValidas.Update (result.porcenLlamValidas);
+        retardoMedioLlam.Update (result.retardoMedioLlam.GetMicroSeconds () / 1000.0);
+      }
+      // Calcular el intervalo de confianza
+      IC[GRAFICA_CUMPLIM] = IC_PONDERACION * sqrt (porcenLlamValidas.Var () / IC_SIMULACIONES_POR_PUNTO);
+      IC[GRAFICA_RETARDO] = IC_PONDERACION * sqrt (retardoMedioLlam.Var () / IC_SIMULACIONES_POR_PUNTO);
+      // Aniadir punto a la curva
+      PUNTO_Y valoresGrafCumplim = {
+        porcenLlamValidas.Mean (),
+        IC[GRAFICA_CUMPLIM]
+      };
+      valoresGraficas[GRAFICA_CUMPLIM][tamCola - 1][numClientes] = valoresGrafCumplim;
+      PUNTO_Y valoresGrafRetardo = {
+        retardoMedioLlam.Mean (),
+        IC[GRAFICA_RETARDO]
+      };
+      valoresGraficas[GRAFICA_RETARDO][tamCola - 1][numClientes] = valoresGrafRetardo;
+      // Crearemos una recta representando el requisito de llamadas validas
+      if (numClientesMax < numClientes) {
+        numClientesMax = numClientes;
+      }
+      NS_LOG_DEBUG ("Valores medios con " << numClientesMax << " clientes: "
+                    << "porcenLlamValidas: " << porcenLlamValidas.Mean () << ", "
+                    << "retardoMedioLlam: " << retardoMedioLlam.Mean ());
+      if (modoCalculoClientes) {
         // Esta parte se dedica a especificamente a ejecutar el algoritmo
         // El algoritmo se encarga de encontrar un valor optimo de numClientes
         if (cumpleRequisitos (porcenLlamValidas.Mean ())) {
@@ -304,29 +321,31 @@ main (int argc, char *argv[])
           // Incumple clientes, volver al valor anterior
           numClientes = instanciaCalculoClientes.ResetValue ();
         }
+      } else {
+        // Modo de simulacion, incrementar clientes de 10 en 10
+        numClientes += 10;
       }
-      NS_LOG_INFO ("Encontrado optimo numero de clientes (tamCola = " << tamCola << "): " << numClientes);
-      // Fin ejecucion del algoritmo
     }
-    // Fin de recorrido de las curvas
-    // Representar el requisito en una linea horizontal
-    // Aniadir requisito de llamadas validas en la grafica correspondiente
-    std::ostringstream rectaRequisitoLlam;
-    rectaRequisitoLlam
-      << "set arrow from 0,"
-      << (REQUISITO_PORCEN_LLAM_CORRECTAS) << " "
-      << "to " << numClientesMax << ","
-      << floor (REQUISITO_PORCEN_LLAM_CORRECTAS) << " "
-      << "nohead";
-    graficas[GRAFICA_CUMPLIM].AppendExtra (rectaRequisitoLlam.str ());
-    // Arreglar el intervalo de las graficas creadas
-    for (int idGrafica = 0; idGrafica < NUM_GRAFICAS; idGrafica++) {
-      std::ostringstream intervaloNumClientes;
-      intervaloNumClientes << "set xrange [0:+" << numClientesMax << "]";
-      graficas[idGrafica].AppendExtra (intervaloNumClientes.str ());
-    }
+    NS_LOG_INFO ("Encontrado optimo numero de clientes (tamCola = " << tamCola << "): " << numClientes);
+    // Fin ejecucion del algoritmo
   }
-  // Fin del modo de calculo de clientes
+  // Fin de recorrido de las curvas
+  // Representar el requisito en una linea horizontal
+  // Aniadir requisito de llamadas validas en la grafica correspondiente
+  std::ostringstream rectaRequisitoLlam;
+  rectaRequisitoLlam
+    << "set arrow from 0,"
+    << (REQUISITO_PORCEN_LLAM_CORRECTAS) << " "
+    << "to " << numClientesMax << ","
+    << floor (REQUISITO_PORCEN_LLAM_CORRECTAS) << " "
+    << "nohead";
+  graficas[GRAFICA_CUMPLIM].AppendExtra (rectaRequisitoLlam.str ());
+  // Arreglar el intervalo de las graficas creadas
+  for (int idGrafica = 0; idGrafica < NUM_GRAFICAS; idGrafica++) {
+    std::ostringstream intervaloNumClientes;
+    intervaloNumClientes << "set xrange [0:+" << numClientesMax << "]";
+    graficas[idGrafica].AppendExtra (intervaloNumClientes.str ());
+  }
 
   // Crear las graficas e imprimirlas
   for (int idGrafica = 0; idGrafica < NUM_GRAFICAS; idGrafica++) {
