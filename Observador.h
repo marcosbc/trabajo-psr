@@ -15,6 +15,8 @@
 #include <ns3/average.h>
 #include <ns3/data-rate.h>
 
+#define RETARDO_MAXIMO_US	140000
+
 using namespace ns3;
 
 class Observador : public Application
@@ -25,19 +27,19 @@ public:
 
   // Metodos de la clase Observador
 
-  //Funcion asociada a la traza:Tx, que va actualizando el tiempo de inicio del envio de un paquete.
+  //Funcion asociada a la traza Tx, que almacena el tiempo de inicio del envio de un paquete
   void ActualizaTinicio(Ptr<const Packet> paquete);
 
-  //Funcion asociada a la traza:Rx que va calculando el retardo.
+  //Funcion asociada a la traza Rx, que calcula el retardo de un paquete
   void ActualizaRetardos(Ptr<const Packet> paquete, const Address & direccion );
 
-  //Función que devuelve la media de los retardos producidos en el canal. 
+  //Funcion que devuelve la media de los retardos de los paquetes enviados
   Time GetMediaRetardos();
 
-  //Función que devuelve la media de los paquetes correctos.
+  //Funcion que devuelve la media de los paquetes correctos
   double GetMediaCorrectos();
 
-  //Comprueba que la estructura no esta vacia
+  //Funcion que compueba si la estructura esta vacia o no
   void CompruebaEstructura();
 
 
@@ -46,16 +48,16 @@ private:
 
   // Variables de la clase Observador
 
-  //Contendra el numero de paquetes enviados. 
+  //Contiene el numero de paquetes enviados 
    uint32_t numPaquetesEnviados;
   
-  //Variable que almacenara los valores de los retardos.
+  //Variable que almacena los valores de los retardos
   Average<double> retardos;
 
-  //Estructura que almacenara los tiempos de envio de paquetes de todos los nodos.
+  //Estructura que almacena los tiempos de envio de paquetes de todos los nodos
   std::map<uint64_t, Time> tiemposEnvios;
 
-  //Almacena el numero de llamadas correctas
+  //Variable que almacena el numero de llamadas correctas
   uint32_t llamadasCorrectas;
 
 };
