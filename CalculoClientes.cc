@@ -52,7 +52,7 @@ main (void)
 */
 
 // Constructor de la clase
-CalculoClientes::CalculoClientes (char tasaCentrales[], char tasaProto[])
+CalculoClientes::CalculoClientes (std::string tasaCentrales, std::string tasaProto)
 {
   NS_LOG_FUNCTION (tasaCentrales << tasaProto);
   uint32_t kbpsCentrales = (DataRate (tasaCentrales)).GetBitRate () / 1000;
