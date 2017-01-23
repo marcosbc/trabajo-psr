@@ -33,6 +33,7 @@ Observador::Observador()
 //Funcion asociada a la traza Tx, que almacena el tiempo de inicio del envio de un paquete
 void Observador::ActualizaTinicio(Ptr<const Packet> paquete)
 {
+  /*
   NS_LOG_FUNCTION (paquete);
   Ptr<Packet> copia = paquete->Copy ();   // Obtener una copia del paquete
   EthernetHeader ethHeader;               // Cabecera de nivel de enlace
@@ -44,6 +45,7 @@ void Observador::ActualizaTinicio(Ptr<const Packet> paquete)
   	copia->RemoveHeader (ipHeader);     // Extraer la cabecera de IP
     if(ipHeader.GetProtocol() == 17)    // Comprobar si es un paquete UDP
     {
+  */
     	//Es un paquete UDP, aumentamos el numero de paquetes enviados y almacenamos el tiempo inicial de envio
   		numPaquetesEnviados++;
   		NS_LOG_DEBUG ("Numero de paquetes enviados: " << numPaquetesEnviados);
@@ -52,8 +54,10 @@ void Observador::ActualizaTinicio(Ptr<const Packet> paquete)
   		NS_LOG_DEBUG ("Paquete: " << paquete->GetUid()
                 		<< " enviado en: "
                			<< Simulator::Now().GetMilliSeconds () / 1000.0 << "s");
+  /*
   	}
   }
+  */
 }
 
 //Funcion asociada a la traza Rx, que calcula el retardo de un paquete
@@ -61,7 +65,7 @@ void Observador::ActualizaRetardos(Ptr<const Packet> paquete, const Address & di
 {
   NS_LOG_FUNCTION (paquete);
 
-  Ptr<Packet> copia = paquete->Copy ();   // Obtener una copia del paquete
+  /*Ptr<Packet> copia = paquete->Copy ();   // Obtener una copia del paquete
   EthernetHeader ethHeader;               // Cabecera de nivel de enlace
   Ipv4Header ipHeader;                    // Cabecera de nivel de red
   copia->RemoveHeader (ethHeader);        // Extraer la cabecera de nivel de red
@@ -72,6 +76,7 @@ void Observador::ActualizaRetardos(Ptr<const Packet> paquete, const Address & di
    	if(ipHeader.GetProtocol() == 17)    // Comprobar si es un paquete UDP
     {
     	//Es un paquete UDP, buscamos en la estructura el tiempo inicial de envío del paquete
+  */
     	std::map<uint64_t, Time>::iterator indice;
   		indice=tiemposEnvios.find(paquete->GetUid());
 
@@ -100,8 +105,10 @@ void Observador::ActualizaRetardos(Ptr<const Packet> paquete, const Address & di
       		NS_LOG_WARN ("Ha llegado un paquete que no esta en la estructura");
       		NS_LOG_DEBUG ("El uid del paquete que ha llegado es " << paquete->GetUid());
     	}
-	}
+  /*
+    }
   }
+  */
 }
 
 

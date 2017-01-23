@@ -8,8 +8,6 @@
  * DESCRIPCION: TODO
  */
 
-#define TRABAJO
-
 #include <ns3/core-module.h>
 #include <ns3/network-module.h>
 #include <ns3/csma-module.h>
@@ -49,7 +47,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 // TODO Poner valor no nulo
 #define DEFAULT_CLIENTES_PERROR_BIT 0.0
 // Probabilidad de que un cliente realice una llamada durante la simulacion
-#define DEFAULT_CLIENTES_PROB_LLAMADA 0.10
+#define DEFAULT_CLIENTES_PROB_LLAMADA 0.4
 
 // Configuracion del escenario
 #define NUM_CENTRALES 2
@@ -70,6 +68,14 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 // Configuracion de simulacion (en segundos)
 #define START_TIME "1s"
 #define STOP_TIME "100s"
+
+// Punto Y de una grafica
+typedef struct {
+  // Media de valores (punto en grafica)
+  double mean;
+  // Intervalo de confianza del punto
+  double ic;
+} PUNTO_Y;
 
 struct RESULTADOS_SIMULACION {
   // Tanto por cien de llamadas consideradas validas
@@ -193,6 +199,8 @@ main (int argc, char *argv[])
   Gnuplot graficas[NUM_GRAFICAS];
   Gnuplot2dDataset curvas[NUM_GRAFICAS][DEFAULT_CENTRALES_TAMCOLA];
   std::ostringstream tituloGraficas[NUM_GRAFICAS];
+  std::map<uint32_t, PUNTO_Y> valoresGraficas[NUM_GRAFICAS][DEFAULT_CENTRALES_TAMCOLA];
+  std::map<uint32_t, PUNTO_Y>::iterator iteradorGraficas;
   // Graficas de calculo de numero de clientes
   // 1 - Grafica de % de cumplimiento de llamadas
   tituloGraficas[GRAFICA_CUMPLIM]
@@ -245,10 +253,11 @@ main (int argc, char *argv[])
         DEFAULT_CENTRALES_TASA, REQUISITO_LLAM_TASA
       );
       uint32_t numClientes = instanciaCalculoClientes.GetInitialValue ();
+      // Utilizado exclusivamente para marcar el final del eje X en graficas
       numClientesMax = numClientes;
       // Cada iteracion representara un distinto punto en el eje X de la grafica
       while (! instanciaCalculoClientes.FoundValue ()) {
-        NS_LOG_DEBUG ("Iteracion clientes: " << numClientes << " clientes");
+        NS_LOG_DEBUG ("Iteracion de obtencion de porcenLlamValidas con tamCola: " << tamCola << ", clientes: " << numClientes << " clientes");
         // Obtener punto e IC segun numero de clientes analizado
         Average<double> porcenLlamValidas;
         Average<double> retardoMedioLlam;
@@ -272,12 +281,16 @@ main (int argc, char *argv[])
         IC[GRAFICA_CUMPLIM] = IC_PONDERACION * sqrt (porcenLlamValidas.Var () / IC_SIMULACIONES_POR_PUNTO);
         IC[GRAFICA_RETARDO] = IC_PONDERACION * sqrt (retardoMedioLlam.Var () / IC_SIMULACIONES_POR_PUNTO);
         // Aniadir punto a la curva
-        curvas[GRAFICA_CUMPLIM][tamCola - 1].Add (
-          numClientes, porcenLlamValidas.Mean (), IC[GRAFICA_CUMPLIM]
-        );
-        curvas[GRAFICA_RETARDO][tamCola - 1].Add (
-          numClientes, retardoMedioLlam.Mean (), IC[GRAFICA_RETARDO]
-        );
+        PUNTO_Y valoresGrafCumplim = {
+          porcenLlamValidas.Mean (),
+          IC[GRAFICA_CUMPLIM]
+        };
+        valoresGraficas[GRAFICA_CUMPLIM][tamCola - 1][numClientes] = valoresGrafCumplim;
+        PUNTO_Y valoresGrafRetardo = {
+          retardoMedioLlam.Mean (),
+          IC[GRAFICA_RETARDO]
+        };
+        valoresGraficas[GRAFICA_RETARDO][tamCola - 1][numClientes] = valoresGrafRetardo;
         // Crearemos una recta representando el requisito de llamadas validas
         if (numClientesMax < numClientes) {
           numClientesMax = numClientes;
@@ -285,19 +298,16 @@ main (int argc, char *argv[])
         // Esta parte se dedica a especificamente a ejecutar el algoritmo
         // El algoritmo se encarga de encontrar un valor optimo de nClientesPorCentral
         if (cumpleRequisitos (porcenLlamValidas.Mean ())) {
-           NS_LOG_DEBUG ("Cumplimiento de requisitos con " << numClientes << " clientes");
-           numClientes = instanciaCalculoClientes.GetValue ();
+          NS_LOG_DEBUG ("Cumplimiento de requisitos con " << numClientes << " clientes");
+          numClientes = instanciaCalculoClientes.GetValue ();
         } else {
-           NS_LOG_DEBUG ("No se cumplen los requisitos con " << numClientes << " clientes");
-           // Incumple clientes, volver al valor anterior
-           numClientes = instanciaCalculoClientes.ResetValue ();
+          NS_LOG_DEBUG ("No se cumplen los requisitos con " << numClientes << " clientes");
+          // Incumple clientes, volver al valor anterior
+          numClientes = instanciaCalculoClientes.ResetValue ();
         }
       }
       NS_LOG_INFO ("Encontrado optimo numero de clientes (tamCola = " << tamCola << "): " << numClientes);
       // Fin ejecucion del algoritmo
-      // Aniadir curvas a las graficas
-      graficas[GRAFICA_CUMPLIM].AddDataset (curvas [GRAFICA_CUMPLIM][tamCola - 1]);
-      graficas[GRAFICA_RETARDO].AddDataset (curvas [GRAFICA_RETARDO][tamCola - 1]);
     }
     // Fin de recorrido de las curvas
     // Representar el requisito en una linea horizontal
@@ -321,6 +331,20 @@ main (int argc, char *argv[])
 
   // Crear las graficas e imprimirlas
   for (int idGrafica = 0; idGrafica < NUM_GRAFICAS; idGrafica++) {
+    // Primero, aniadir curvas con sus puntos a las graficas
+    for (uint32_t tamCola = 1; tamCola <= DEFAULT_CENTRALES_TAMCOLA; tamCola++) {
+      // Aniadir puntos a la curva respectiva
+      for (iteradorGraficas = valoresGraficas[idGrafica][tamCola - 1].begin ();
+           iteradorGraficas != valoresGraficas[idGrafica][tamCola - 1].end ();
+           iteradorGraficas++) {
+        curvas[idGrafica][tamCola - 1].Add (iteradorGraficas->first,
+                                            (iteradorGraficas->second).mean,
+                                            (iteradorGraficas->second).ic);
+      }
+      // Aniadir curvas a las graficas
+      graficas[GRAFICA_CUMPLIM].AddDataset (curvas [GRAFICA_CUMPLIM][tamCola - 1]);
+      graficas[GRAFICA_RETARDO].AddDataset (curvas [GRAFICA_RETARDO][tamCola - 1]);
+    }
     // Creacion del fichero
     std::ostringstream tituloFichero;
     tituloFichero << "trabajo8-" << idGrafica + 1 << ".plt";
@@ -554,185 +578,5 @@ simulacion (
     observador.GetMediaRetardos ()
   };
   return resultados;
-
-  /* LOGICA ANTERIOR */
-  /*
-  NodeContainer p2pNodes1;
-  p2pNodes1.Create (nClientesPorCentral+1);//Creamos todos los nodos junto con las centrales
-  NodeContainer p2pNodes2;
-  p2pNodes2.Create (nClientesPorCentral+1);//Creamos todos los nodos junto con las centrales
-
-  NodeContainer centrales;
-  centrales.Add(p2pNodes1.Get(0));
-  centrales.Add(p2pNodes2.Get(0));
-
-  NodeContainer central1[nClientesPorCentral];
-  NodeContainer central2[nClientesPorCentral];
-
-  //Asociacion de los nodos a las distintas centrales.
-  for(uint32_t nodo=0; nodo<nClientesPorCentral; nodo++)
-    {
-      central1[nodo].Add(p2pNodes1.Get(0));
-      central1[nodo].Add(p2pNodes1.Get(nodo+1));
-
-      central2[nodo].Add(p2pNodes2.Get(0));
-      central2[nodo].Add(p2pNodes2.Get(nodo+1));
-    }
-
-  PointToPointHelper pointToPointCentrales;
-  pointToPointCentrales.SetDeviceAttribute ("DataRate", StringValue (DEFAULT_TASA_CENTRALES));
-  pointToPointCentrales.SetChannelAttribute ("Delay", StringValue ( DEFAULT_CENTRALES_RETARDO));
-  NetDeviceContainer DeviceCentrales;
-  //Asignamos al canal los errores
-  Ptr<RateErrorModel> errores = CreateObject<RateErrorModel> ();
-  errores->SetUnit (RateErrorModel::ERROR_UNIT_BIT);
-  errores->SetRate (probErrorBitClientesMedia);
-  pointToPointCentrales.SetDeviceAttribute ("ReceiveErrorModel", PointerValue (errores));
-  DeviceCentrales= pointToPointCentrales.Install (centrales);
-
-  Ptr<PointToPointNetDevice> nodoenlace1= DeviceCentrales.Get(0)->GetObject<PointToPointNetDevice>();
-  nodoenlace1->GetQueue()->GetObject<DropTailQueue>()->SetAttribute("MaxPackets",UintegerValue(tamcola));
-  Ptr<PointToPointNetDevice> nodoenlace2= DeviceCentrales.Get(1)->GetObject<PointToPointNetDevice>();
-  nodoenlace2->GetQueue()->GetObject<DropTailQueue>()->SetAttribute("MaxPackets",UintegerValue(tamcola));
-
-  PointToPointHelper pointToPointNodos;
-  NetDeviceContainer DeviceCentral1[nClientesPorCentral];
-  NetDeviceContainer DeviceCentral2[nClientesPorCentral];
-
-
-  //Agregacion de los atributos a los enlaces entre nodos y centrales
-  for(uint32_t device=0; device<nClientesPorCentral;device++)
-  {
-    pointToPointNodos.SetDeviceAttribute ("DataRate",DataRateValue(DataRate(uint64_t(velEnlace->GetValue()))));
-    pointToPointNodos.SetChannelAttribute ("Delay", TimeValue(Time(retEnlace->GetValue())));
-    pointToPointNodos.SetDeviceAttribute ("ReceiveErrorModel", PointerValue (errores));
-    DeviceCentral1[device]= pointToPointNodos.Install (central1[device]);
-    DeviceCentral2[device]= pointToPointNodos.Install (central2[device]);
-  }
-
-  //Instalamos las pilas en todos los nodos y centrales.
-  InternetStackHelper stack;
-  stack.Install (p2pNodes1);
-  stack.Install (p2pNodes2);
-
-
-  // Asignamos direcciones a cada una de las interfaces
-  // Utilizamos dos rangos de direcciones diferentes:
-  Ipv4AddressHelper address;
-  address.SetBase ("10.254.0.0", "255.255.255.0");
-  Ipv4InterfaceContainer Interfacescentrales;
-  Interfacescentrales = address.Assign (DeviceCentrales);
-
-  uint32_t ip1=1;
-  uint32_t ip2=1;
-  Ipv4InterfaceContainer Interfacesnodos1[nClientesPorCentral];
-  Ipv4InterfaceContainer Interfacesnodos2[nClientesPorCentral];
-
-  for(uint32_t nclientes=0; nclientes < nClientesPorCentral; nclientes++)
-    {
-      std::ostringstream direccionIP1;
-      std::ostringstream direccionIP2;
-      if(ip1<255)
-      {
-        direccionIP1 << "10."<< ip2 << "." << ip1 << ".0" ;
-        ip1++;
-        direccionIP2 << "10."<< ip2 << "." << ip1 << ".0" ;
-        ip1++;
-      }
-      else
-      {
-        ip1=1;
-        ip2++;
-        direccionIP1 << "10."<< ip2 << "." << ip1 << ".0" ;
-        ip1++;
-        direccionIP2 << "10."<< ip2 << "." << ip1 << ".0" ;
-        ip1++;
-      }
-
-      address.SetBase (direccionIP1.str().c_str(), "255.255.255.0");
-      Interfacesnodos1[nclientes] = address.Assign ( DeviceCentral1[nclientes]);
-      address.SetBase (direccionIP2.str().c_str(), "255.255.255.0");
-      Interfacesnodos2[nclientes] = address.Assign ( DeviceCentral2[nclientes]);
-
-    }
-
-  // Calculamos las rutas del escenario. Con este comando, los
-  //     nodos de la red de área local definen que para acceder
-  //     al nodo del otro extremo del enlace punto a punto deben
-  //     utilizar el primer nodo como ruta por defecto.
-   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
-
-    uint16_t port = 9;
-    PacketSinkHelper sink1 ("ns3::UdpSocketFactory",
-                         Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
-    PacketSinkHelper sink2 ("ns3::UdpSocketFactory",
-                         Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
-
-    ApplicationContainer clientApps1[nClientesPorCentral];
-    ApplicationContainer clientApps2[nClientesPorCentral];
-    ApplicationContainer app1[nClientesPorCentral];
-    ApplicationContainer app2[nClientesPorCentral];
-
-   for (uint32_t nclientes=0; nclientes<nClientesPorCentral; nclientes++)
-     {
-       //Instalacion de sumideros
-       app1[nclientes] = sink1.Install (central1[nclientes].Get (0));
-       app2[nclientes] = sink2.Install (central2[nclientes].Get (0));
-
-       //Creacion de clientes
-       OnOffHelper clientes1 ("ns3::UdpSocketFactory",
-         Address (InetSocketAddress ( Interfacesnodos2[nclientes].GetAddress (0), port)));
-       //Valores de los clientes concectados a la central1
-       clientes1.SetAttribute("OnTime",PointerValue(onTime));
-       clientes1.SetAttribute("OffTime",PointerValue(offTime));
-       clientes1.SetAttribute("PacketSize",UintegerValue (sizePkt));
-       clientes1.SetAttribute("DataRate",DataRateValue(tasaEnvioCliente));
-       //para añadir el on/off a todos los nodos de la central1.
-       clientApps1[nclientes] = clientes1.Install (central1[nclientes]);
-       OnOffHelper clientes2 ("ns3::UdpSocketFactory",
-         Address (InetSocketAddress ( Interfacesnodos1[nclientes].GetAddress (0), port)));
-       //Valores de los clientes concectados a la central2
-       clientes2.SetAttribute("OnTime",PointerValue(onTime));
-       clientes2.SetAttribute("OffTime",PointerValue(offTime));
-       clientes2.SetAttribute("PacketSize",UintegerValue (sizePkt));
-       clientes2.SetAttribute("DataRate",DataRateValue(tasaEnvioCliente));
-       //para añadir el on/off a todos los nodos de la central2.
-       clientApps2[nclientes] = clientes2.Install (central2[nclientes]);
-     }
-
-    //Trazas
-  Observador observador;
-
-  for(uint32_t numclientes = 0; numclientes <nClientesPorCentral; numclientes++)
-    {
-      clientApps1[numclientes].Get(0)->TraceConnectWithoutContext ("Tx",MakeCallback(&Observador::ActualizaTinicio,&observador));
-      clientApps2[numclientes].Get(0)->TraceConnectWithoutContext ("Tx",MakeCallback(&Observador::ActualizaTinicio,&observador));
-      app1[numclientes].Get(0)->TraceConnectWithoutContext("Rx",MakeCallback(&Observador::ActualizaRetardos,&observador));
-      app2[numclientes].Get(0)->TraceConnectWithoutContext("Rx",MakeCallback(&Observador::ActualizaRetardos,&observador));
-    }
-
-  for(uint32_t nclientes=0; nclientes<nClientesPorCentral; nclientes++)
-    {
-      clientApps1[nclientes].Start (Seconds (2.0));
-      clientApps2[nclientes].Start (Seconds (2.0));
-      clientApps1[nclientes].Stop (Seconds (10.0));
-      clientApps2[nclientes].Stop (Seconds (10.0));
-    }
-
-    // Lanzamos la simulación
-  Simulator::Run ();
-  Simulator::Destroy ();
-
-   //Comprovamos que la estructura no este vacia y en caso de estarlo
-  //saltara un warn.
-  observador.CompruebaEstructura();
-
-  //Guardamos la media de los retardos en "retardos".
-  *(retardos)=observador.GetMediaRetardos();
-  NS_LOG_INFO ("Media Retardos: " << observador.GetMediaRetardos() << "us");
-  //Guardamos el porcentaje de paquetes correctos en "correctos"
-  *(correctos)=observador.GetMediaCorrectos()*100;
-  NS_LOG_INFO ("Porcentaje Correcto: " << observador.GetMediaCorrectos()*100 << "%");
-  */
 }
 
