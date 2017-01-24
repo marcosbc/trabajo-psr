@@ -27,7 +27,7 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("Trabajo");
 
 // Descomentar para activar el modo de validacion
-#define VALIDACION
+// #define VALIDACION
 
 // Definicion de requisitos
 #define REQUISITO_LLAM_TASA "64kbps"
@@ -45,15 +45,16 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 #define DEFAULT_NUM_CLIENTES 100
 #define DEFAULT_CLIENTES_TASA "1Mbps"
 #define DEFAULT_CLIENTES_RETARDO "20ms"
-#define DEFAULT_CLIENTES_DURACION_LLAMADA "30s"
 #define DEFAULT_CLIENTES_PERROR_BIT 0.000001
+// Empieza en 20, itera segun el numero de curva de prob. llamada
+#define DEFAULT_CLIENTES_DURACION_LLAMADA "20s"
 // Probabilidad de que un cliente realice una llamada durante la simulacion
 // Valor final
 #define DEFAULT_CLIENTES_PROB_LLAMADA 1
 // Valor inicial
 #define DEFAULT_CLIENTES_PROB_LLAMADA_INI 0.1
 // Numero de saltos (representa el numero de curvas - 1)
-#define DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS 3
+#define DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS 2
 
 // Configuracion del escenario
 #define NUM_CENTRALES 2
@@ -182,14 +183,13 @@ main (int argc, char *argv[])
 
   // Para iterar sobre pLlam
   uint32_t numCurvas = DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS + 1;
-  double clientesProbLlamRatio;
+  double clientesVariacionProbLlam;
   if (numCurvas - 1 > 0) {
-    clientesProbLlamRatio =
-      pow ((double) clientesProbLlam / DEFAULT_CLIENTES_PROB_LLAMADA_INI,
-           (double) 1 / (numCurvas - 1));
+    clientesVariacionProbLlam =
+      (DEFAULT_CLIENTES_PROB_LLAMADA - DEFAULT_CLIENTES_PROB_LLAMADA_INI) / (numCurvas - 1);
   } else {
     // En el caso de que solo haya un punto, no varia pLlam
-    clientesProbLlamRatio = 1;
+    clientesVariacionProbLlam = 0;
     numCurvas = 1;
   }
 
@@ -257,9 +257,10 @@ main (int argc, char *argv[])
   Ptr<ExponentialRandomVariable> clientesRetardo = CreateObject<ExponentialRandomVariable> ();
   clientesRetardo->SetAttribute("Mean", DoubleValue (clientesRetardoMedio.GetMicroSeconds () / 1000.0));
   // Duracion de cada llamada (en segundos)
+  // Su media depende del nivel de trafico en el que se encuentre, ya que
+  // nuestro escenario que en epocas de alto nivel de trafico, es mayor
   Ptr<ExponentialRandomVariable> durLlamVar = CreateObject<ExponentialRandomVariable> ();
-  durLlamVar->SetAttribute("Mean", DoubleValue (
-    Time (DEFAULT_CLIENTES_DURACION_LLAMADA).GetMilliSeconds () / 1000.0));
+  double* duracionMediaLlamada = new double[numCurvas];
   // Tiempo de inicio de cada llamada (en segundos)
   Ptr<UniformRandomVariable> tLlamVar = CreateObject<UniformRandomVariable> ();
   tLlamVar->SetAttribute("Min", DoubleValue (
@@ -321,7 +322,13 @@ main (int argc, char *argv[])
   for (uint32_t iterPLlam = 0;
        iterPLlam < numCurvas;
        iterPLlam++) {
-    NS_LOG_INFO ("Iteracion pLlam: " << pLlam);
+    duracionMediaLlamada[iterPLlam] =
+      pow (2, iterPLlam) * clientesDuracionMediaLlam.GetMilliSeconds () / 1000.0;
+    NS_LOG_INFO ("Iteracion pLlam: " << pLlam << ", durLlam: " << duracionMediaLlamada[iterPLlam]);
+    // Como se ha especificado anteriormente, la duracion media de llamadas depende
+    // del nivel de trafico, por lo que cambiamos su media en este instante
+    durLlamVar->SetAttribute("Mean", DoubleValue (
+      Time (duracionMediaLlamada[iterPLlam]).GetMilliSeconds () / 1000.0));
     // Configurar las curvas de las graficas
     leyendaCurvas[iterPLlam] << "pLlam: " << pLlam;
     for (int idGrafica = 0; idGrafica < NUM_GRAFICAS; idGrafica++) {
@@ -417,7 +424,7 @@ main (int argc, char *argv[])
       NS_LOG_INFO ("Encontrado optimo numero de clientes (pLlam = " << pLlam << "): " << numClientes);
     }
     // Aumentar pLlam por iteracion de iterPLlam
-    pLlam *= clientesProbLlamRatio;
+    pLlam += clientesVariacionProbLlam;
   }
   // Fin de recorrido de las curvas
   // Representar el requisito en una linea horizontal
@@ -559,7 +566,7 @@ simulacion (
   }
   // Fin recorrido de centrales
   // Asignamiento de llamadas (dos clientes comunicados entre si)
-  // Los valores "duracionLlamadas" y "probLlamada" son variables aleatorias
+  // Los valores "durLlamVar" y "probLlamVar" son variables aleatorias
   LlamadasHelper llamadas (numClientes, durLlamVar, tLlamVar, probLlamVar,
                            pLlam);
   // Imprimir la asignacion de llamadas
