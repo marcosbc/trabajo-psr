@@ -32,7 +32,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 // Definicion de requisitos
 #define REQUISITO_LLAM_TASA "64kbps"
 #define REQUISITO_LLAM_RETARDO_MAX "140ms"
-#define REQUISITO_PORCEN_LLAM_CORRECTAS 90
+#define REQUISITO_PORCEN_LLAM_CORRECTAS 95
 
 // Valores por defecto del escenario
 #define DEFAULT_CENTRALES_TASA "1Mbps" // Tasa de transmision entre centrales
@@ -142,7 +142,6 @@ cumpleRequisitos (double porcenLlamValidas);
 RESULTADOS_SIMULACION
 simulacion (
   uint32_t numClientes,
-  Ptr<ExponentialRandomVariable> capacEnlace, Ptr<ExponentialRandomVariable> delayEnlace,
   Ptr<ExponentialRandomVariable> durLlamVar, Ptr<UniformRandomVariable> tLlamVar,
   Ptr<UniformRandomVariable> probLlamVar, double pLlam,
   double pError, DataRate tasaLlam, uint32_t sizePkt, uint32_t tamCola
@@ -359,8 +358,7 @@ main (int argc, char *argv[])
         NS_LOG_DEBUG ("Iteracion IC: " << simul);
         // Ejecutar las simulaciones y obtener los datos
         RESULTADOS_SIMULACION result = simulacion (
-          numClientes, clientesCapacidadEnlace, clientesRetardo,
-          durLlamVar, tLlamVar, probLlamVar, pLlam,
+          numClientes, durLlamVar, tLlamVar, probLlamVar, pLlam,
           clientesProbErrorBit, protocoloTasa, tamPaquete, tamCola
         );
         NS_LOG_DEBUG ("Resultado simulacion " << contadorSimulaciones
@@ -491,12 +489,11 @@ cumpleRequisitos (double porcenLlamValidas)
 RESULTADOS_SIMULACION
 simulacion (
   uint32_t numClientes,
-  Ptr<ExponentialRandomVariable> capacEnlace, Ptr<ExponentialRandomVariable> delayEnlace,
   Ptr<ExponentialRandomVariable> durLlamVar, Ptr<UniformRandomVariable> tLlamVar,
   Ptr<UniformRandomVariable> probLlamVar, double pLlam,
   double pError, DataRate tasaLlam, uint32_t sizePkt, uint32_t tamCola
 ) {
-  NS_LOG_FUNCTION (numClientes << capacEnlace << delayEnlace << durLlamVar << tLlamVar
+  NS_LOG_FUNCTION (numClientes << durLlamVar << tLlamVar
                    << probLlamVar << pLlam << pError << tasaLlam << sizePkt << tamCola);
 
   // -------------------------------- CENTRALES --------------------------------
@@ -553,9 +550,9 @@ simulacion (
       paresClienteCentral[idCliente].Add (clientes[idCentral].Get (iteradorClientes));
       // Configurar los parametros del enlace: Tasa, retardo y errores
       enlacesClienteCentral[idCliente].SetDeviceAttribute ("DataRate",
-        DataRateValue (DataRate (capacEnlace->GetValue ())));
+        DataRateValue (DataRate (DEFAULT_CLIENTES_TASA)));
       enlacesClienteCentral[idCliente].SetChannelAttribute ("Delay",
-        TimeValue (MilliSeconds (delayEnlace->GetValue ())));
+        TimeValue (Time (DEFAULT_CLIENTES_RETARDO)));
       enlacesClienteCentral[idCliente].SetDeviceAttribute ("ReceiveErrorModel",
         PointerValue (pErrorClienteCentral));
       // Instalar los dispositivos en los nodos
