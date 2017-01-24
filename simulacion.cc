@@ -186,7 +186,7 @@ main (int argc, char *argv[])
   double clientesVariacionProbLlam;
   if (numCurvas - 1 > 0) {
     clientesVariacionProbLlam =
-      (DEFAULT_CLIENTES_PROB_LLAMADA - DEFAULT_CLIENTES_PROB_LLAMADA_INI) / (numCurvas - 1);
+      (clientesProbLlam - DEFAULT_CLIENTES_PROB_LLAMADA_INI) / (numCurvas - 1);
   } else {
     // En el caso de que solo haya un punto, no varia pLlam
     clientesVariacionProbLlam = 0;
@@ -324,11 +324,10 @@ main (int argc, char *argv[])
        iterPLlam++) {
     duracionMediaLlamada[iterPLlam] =
       pow (2, iterPLlam) * clientesDuracionMediaLlam.GetMilliSeconds () / 1000.0;
-    NS_LOG_INFO ("Iteracion pLlam: " << pLlam << ", durLlam: " << duracionMediaLlamada[iterPLlam]);
+    NS_LOG_INFO ("Iteracion pLlam: " << pLlam << ", durLlam: " << duracionMediaLlamada[iterPLlam] << "s");
     // Como se ha especificado anteriormente, la duracion media de llamadas depende
     // del nivel de trafico, por lo que cambiamos su media en este instante
-    durLlamVar->SetAttribute("Mean", DoubleValue (
-      Time (duracionMediaLlamada[iterPLlam]).GetMilliSeconds () / 1000.0));
+    durLlamVar->SetAttribute("Mean", DoubleValue (duracionMediaLlamada[iterPLlam]));
     // Configurar las curvas de las graficas
     leyendaCurvas[iterPLlam] << "pLlam: " << pLlam;
     for (int idGrafica = 0; idGrafica < NUM_GRAFICAS; idGrafica++) {

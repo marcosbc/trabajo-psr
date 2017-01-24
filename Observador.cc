@@ -69,7 +69,7 @@ void Observador::ActualizaRetardos(Ptr<const Packet> paquete, const Address & di
     // Al haberse hecho uso del elemento, quitarlo de la lista
     tiemposEnvios.erase (indice);
     // Si se cumple que el retardo es menor a 140ms, aumentamos el contador de llamadas correctas
-    if(tiempo < RETARDO_MAXIMO_US)
+    if(tiempo < Time (REQUISITO_LLAM_RETARDO_MAX).GetDouble ())
     {
       retardos.Update (tiempo);
       llamadasCorrectas++;

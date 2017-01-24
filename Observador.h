@@ -15,7 +15,9 @@
 #include <ns3/average.h>
 #include <ns3/data-rate.h>
 
-#define RETARDO_MAXIMO_US	140000
+#ifndef REQUISITO_LLAM_RETARDO_MAX
+#define REQUISITO_LLAM_RETARDO_MAX "140ms"
+#endif
 
 using namespace ns3;
 
