@@ -173,10 +173,6 @@ main (int argc, char *argv[])
   // del SLA de llamadas (definidas como requisitos anteriormente)
   bool modoCalculoClientes = false;
 
-  // Modo de simulacion recorriendo el numero de clientes existentes hasta llegar
-  // a un limite
-  bool modoSimulacionClientes = ! modoCalculoClientes;
-
   // Configuracion de escenario
   uint32_t nClientesPorCentral = DEFAULT_NUM_CLIENTES;
   uint32_t tamCola = DEFAULT_CENTRALES_TAMCOLA;
@@ -229,10 +225,11 @@ main (int argc, char *argv[])
   // Tratar los valores obtenidos/modificados por linea de comandos
   // Comprueba que el numero de clientes no sea 0, si lo fuera lo pone a 1.
   nClientesPorCentral = nClientesPorCentral <= 0 ? 1 : nClientesPorCentral;
-  // Solo permitir un modo de simulacion a la vez
-  if (modoSimulacionClientes) {
-    modoCalculoClientes = false;
-  }
+
+  // Modo de simulacion recorriendo el numero de clientes existentes hasta llegar
+  // a un limite
+  // Solo podemos permitir un modo de simulacion a la vez
+  bool modoSimulacionClientes = ! modoCalculoClientes;
 
   // Construir cadena de parametros de entrada usada en logs y graficas
   std::ostringstream parametrosEntrada;
