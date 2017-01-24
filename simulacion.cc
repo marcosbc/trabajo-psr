@@ -138,7 +138,7 @@ typedef struct {
 } PUNTO_Y;
 
 struct RESULTADOS_SIMULACION {
-  // Tanto por cien de llamadas consideradas validas
+  // Tanto por cien de paquetes de una llamada validos
   double porcenLlamValidas;
   // Retardo medio de paquetes, en una estructura Time
   Time retardoMedioLlam;
@@ -352,7 +352,7 @@ main (int argc, char *argv[])
     // Soportar los dos modos de simulacion: Calculo de clientes optimo y simulacion de clientes
     while ((modoCalculoClientes && ! instanciaCalculoClientes.FoundValue ())
            || (modoSimulacionClientes && numClientes <= nClientesPorCentral)) {
-      NS_LOG_DEBUG ("Iteracion de obtencion de porcenPaquetesValidos con pLlam: " << pLlam << ", cliente: " << numClientes);
+      NS_LOG_DEBUG ("Iteracion con pLlam: " << pLlam << ", cliente: " << numClientes);
       // Obtener punto e IC segun numero de clientes analizado
       Average<double> porcenLlamValidas;
       Average<double> retardoMedioLlam;
@@ -401,7 +401,7 @@ main (int argc, char *argv[])
         numClientesMax = numClientes;
       }
       NS_LOG_DEBUG ("Valores medios con " << numClientesMax << " clientes: "
-                    << "porcenPAquetesValidos: " << porcenLlamValidas.Mean () << ", "
+                    << "porcenPaquetesValidos: " << porcenLlamValidas.Mean () << ", "
                     << "retardoMedioLlam: " << retardoMedioLlam.Mean ());
       if (modoCalculoClientes) {
         // Esta parte se dedica a especificamente a ejecutar el algoritmo
