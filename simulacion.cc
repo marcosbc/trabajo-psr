@@ -37,25 +37,23 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 // Valores por defecto del escenario
 #define DEFAULT_CENTRALES_TASA "1Mbps" // Tasa de transmision entre centrales
 #define DEFAULT_CENTRALES_RETARDO "2ms" // Retardo entre centrales
-// TODO Poner valor no nulo
-#define DEFAULT_CENTRALES_PERROR_BIT 0.00001 // Prob. error de bit entre centrales
+#define DEFAULT_CENTRALES_PERROR_BIT 0.000005 // Prob. error de bit entre centrales
 #define DEFAULT_CENTRALES_TAMCOLA 3
 
 // Valores por defecto del los clientes
 // Por defecto se supondra que esta en condiciones normales
-#define DEFAULT_NUM_CLIENTES 250
+#define DEFAULT_NUM_CLIENTES 100
 #define DEFAULT_CLIENTES_TASA "1Mbps"
 #define DEFAULT_CLIENTES_RETARDO "20ms"
 #define DEFAULT_CLIENTES_DURACION_LLAMADA "30s"
-// TODO Poner valor no nulo
 #define DEFAULT_CLIENTES_PERROR_BIT 0.00001
 // Probabilidad de que un cliente realice una llamada durante la simulacion
 // Valor final
 #define DEFAULT_CLIENTES_PROB_LLAMADA 1
 // Valor inicial
 #define DEFAULT_CLIENTES_PROB_LLAMADA_INI 0.1
-// Numero de saltos
-#define DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS 2
+// Numero de saltos (representa el numero de curvas - 1)
+#define DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS 3
 
 // Configuracion del escenario
 #define NUM_CENTRALES 2
@@ -75,8 +73,8 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 #define IC_PONDERACION 2.2622
 
 // Configuracion de simulacion (en segundos)
-#define START_TIME "1s"
-#define STOP_TIME "200s"
+#define START_TIME "10s"
+#define STOP_TIME "100s"
 
 // Modo validacion
 #ifdef VALIDACION
@@ -94,9 +92,11 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 #undef DEFAULT_CLIENTES_PERROR_BIT
 #undef DEFAULT_CLIENTES_PROB_LLAMADA
 #undef DEFAULT_CLIENTES_PROB_LLAMADA_INI
+#undef DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS
 // Paquetes
 #undef DEFAULT_TAM_PAQUETE
 // Simulacion
+#undef START_TIME
 #undef STOP_TIME
 // Definir las nuevas
 // Escenario
@@ -108,14 +108,16 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 // Clientes
 #define DEFAULT_NUM_CLIENTES 20
 #define DEFAULT_CLIENTES_TASA "100Mbps"
+#define DEFAULT_CLIENTES_RETARDO "2ms"
+#define DEFAULT_CLIENTES_PERROR_BIT 0
 #define DEFAULT_CLIENTES_PROB_LLAMADA 1.0
 #define DEFAULT_CLIENTES_PROB_LLAMADA_INI 1.0
-#define DEFAULT_CLIENTES_PERROR_BIT 0
-#define DEFAULT_CLIENTES_RETARDO "2ms"
+#define DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS 0
 // Paquetes
 #define DEFAULT_TAM_PAQUETE 400
 // Simulacion
-#define STOP_TIME "40s"
+#define START_TIME "10s"
+#define STOP_TIME "60s"
 #endif
 
 // Punto Y de una grafica
@@ -179,9 +181,15 @@ main (int argc, char *argv[])
   Time clientesRetardoMedio (DEFAULT_CLIENTES_RETARDO);
 
   // Para iterar sobre pLlam
-  double clientesProbLlamRatio =
-    pow ((double) clientesProbLlam / DEFAULT_CLIENTES_PROB_LLAMADA_INI,
-         (double) 1 / (DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS));
+  double clientesProbLlamRatio;
+  if (DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS != 0) {
+    clientesProbLlamRatio =
+      pow ((double) clientesProbLlam / DEFAULT_CLIENTES_PROB_LLAMADA_INI,
+           (double) 1 / (DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS));
+  } else {
+    // En el caso de que solo haya un punto, no varia pLlam
+    clientesProbLlamRatio = 1;
+  }
 
   // Otras configuraciones
   // Tasa de transmision del protocolo usado
@@ -221,12 +229,22 @@ main (int argc, char *argv[])
   std::ostringstream parametrosEntrada;
   parametrosEntrada
     << "conex=" << clientesCapacidadEnlaceMedia.GetBitRate () / 1000000.0 << "Mbps "
-    << "delay=" << clientesRetardoMedio.GetMicroSeconds () / 1000.0 << "ms "
-    << "durLlam=" << clientesDuracionMediaLlam.GetMilliSeconds () / 1000.0 << "s "
+    << "delay=" << clientesRetardoMedio.GetMicroSeconds () / 1000.0 << "ms ";
+  parametrosEntrada
     << "pError=" << clientesProbErrorBit << " "
     << "tasaVoz=" << protocoloTasa.GetBitRate () / 1000.0 << "kbps "
     << "tamPkt=" << tamPaquete << "B "
-    << "tamCola=" << tamCola;
+    << "tamCola=" << tamCola << " ";
+  // En el modo de validacion, la duracion de llamada es la duracion de
+  // toda la simulacion
+  #ifdef VALIDACION
+  Time duracionLlam = operator- (Time (STOP_TIME), Time (START_TIME));
+  parametrosEntrada
+    << "durLlam=" << duracionLlam.GetMilliSeconds () / 1000.0 << "s";
+  #else
+  parametrosEntrada
+    << "durLlam=" << clientesDuracionMediaLlam.GetMilliSeconds () / 1000.0 << "s";
+  #endif
   NS_LOG_INFO (parametrosEntrada.str ());
 
   // Variables aleatorias para obtener valores unicos por clientes:
@@ -293,13 +311,14 @@ main (int argc, char *argv[])
   );
   // Almacena leyenda de graficas
   std::ostringstream leyendaCurvas[DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS + 1];
-  // Cada grafica tendra distintas curvas, una por tamanio de cola
+  // Cada grafica tendra distintas curvas, una por prob. llamada
   uint32_t numClientes;
-  uint32_t iterPLlam = 0;
+  // Probabilidades de llamada, una por curva
+  double pLlam = DEFAULT_CLIENTES_PROB_LLAMADA_INI;
   // Comenzar a iterar y simular
-  for (double pLlam = DEFAULT_CLIENTES_PROB_LLAMADA_INI;
-       pLlam < clientesProbLlam * clientesProbLlamRatio;
-       pLlam *= clientesProbLlamRatio) {
+  for (uint32_t iterPLlam = 0;
+       iterPLlam < DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS + 1;
+       iterPLlam++) {
     NS_LOG_INFO ("Iteracion pLlam: " << pLlam);
     // Configurar las curvas de las graficas
     leyendaCurvas[iterPLlam] << "pLlam: " << pLlam;
@@ -398,8 +417,8 @@ main (int argc, char *argv[])
     if (modoCalculoClientes) {
       NS_LOG_INFO ("Encontrado optimo numero de clientes (pLlam = " << pLlam << "): " << numClientes);
     }
-    // Aumentar el iterador de prob. llamadas, para almacenar graficas
-    iterPLlam++;
+    // Aumentar pLlam por iteracion de iterPLlam
+    pLlam *= clientesProbLlamRatio;
   }
   // Fin de recorrido de las curvas
   // Representar el requisito en una linea horizontal
@@ -423,7 +442,7 @@ main (int argc, char *argv[])
   for (int idGrafica = 0; idGrafica < NUM_GRAFICAS; idGrafica++) {
     // Primero, aniadir curvas con sus puntos a las graficas
     for (uint32_t iterPLlam = 0;
-         iterPLlam <= DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS;
+         iterPLlam < DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS + 1;
          iterPLlam++) {
       // Aniadir puntos a la curva respectiva
       for (iteradorGraficas = valoresGraficas[idGrafica][iterPLlam].begin ();
@@ -571,8 +590,6 @@ simulacion (
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
   // Imprimir la estructura de la red
   NS_LOG_DEBUG (direcciones.ToString ());
-  // Imprimir tablas de reenvio
-  NS_LOG_DEBUG (direcciones.RoutingTables ());
 
   // ------------------------- APLICACIONES: SUMIDERO --------------------------
   NS_LOG_DEBUG ("Instalando sumideros en clientes");

@@ -154,15 +154,6 @@ DireccionamientoIpv4Helper::ToString ()
   return result.str ();
 }
 
-std::string
-DireccionamientoIpv4Helper::RoutingTables ()
-{
-  NS_LOG_FUNCTION_NOARGS ();
-  std::ostringstream result;
-  // TODO
-  return result.str ();
-}
-
 Ipv4Address
 DireccionamientoIpv4Helper::GetIp (uint32_t idCliente)
 {

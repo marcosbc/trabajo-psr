@@ -31,8 +31,6 @@ public:
                                        NetDeviceContainer dispositivos);
   // Imprime la estructura de la red (util para debug)
   std::string ToString ();
-  // Imprime las tablas de reenvio (util para debug)
-  std::string RoutingTables ();
   // Obtener la IP de un determinado cliente, dentro de las subredes asignadas
   // Notese que una llamada requiere que dos clientes esten en la misma llamada
   Ipv4Address GetIp (uint32_t idCliente);
