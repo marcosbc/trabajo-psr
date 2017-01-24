@@ -27,7 +27,7 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("Trabajo");
 
 // Descomentar para activar el modo de validacion
-// #define VALIDACION
+#define VALIDACION
 
 // Definicion de requisitos
 #define REQUISITO_LLAM_TASA "64kbps"
@@ -181,14 +181,16 @@ main (int argc, char *argv[])
   Time clientesRetardoMedio (DEFAULT_CLIENTES_RETARDO);
 
   // Para iterar sobre pLlam
+  uint32_t numCurvas = DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS + 1;
   double clientesProbLlamRatio;
-  if (DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS != 0) {
+  if (numCurvas - 1 > 0) {
     clientesProbLlamRatio =
       pow ((double) clientesProbLlam / DEFAULT_CLIENTES_PROB_LLAMADA_INI,
-           (double) 1 / (DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS));
+           (double) 1 / (numCurvas - 1));
   } else {
     // En el caso de que solo haya un punto, no varia pLlam
     clientesProbLlamRatio = 1;
+    numCurvas = 1;
   }
 
   // Otras configuraciones
