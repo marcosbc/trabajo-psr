@@ -181,14 +181,16 @@ main (int argc, char *argv[])
   Time clientesRetardoMedio (DEFAULT_CLIENTES_RETARDO);
 
   // Para iterar sobre pLlam
+  uint32_t numCurvas = DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS + 1;
   double clientesProbLlamRatio;
-  if (DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS != 0) {
+  if (numCurvas - 1 > 0) {
     clientesProbLlamRatio =
       pow ((double) clientesProbLlam / DEFAULT_CLIENTES_PROB_LLAMADA_INI,
-           (double) 1 / (DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS));
+           (double) 1 / (numCurvas - 1));
   } else {
     // En el caso de que solo haya un punto, no varia pLlam
     clientesProbLlamRatio = 1;
+    numCurvas = 1;
   }
 
   // Otras configuraciones
@@ -317,7 +319,7 @@ main (int argc, char *argv[])
   double pLlam = DEFAULT_CLIENTES_PROB_LLAMADA_INI;
   // Comenzar a iterar y simular
   for (uint32_t iterPLlam = 0;
-       iterPLlam < DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS + 1;
+       iterPLlam < numCurvas;
        iterPLlam++) {
     NS_LOG_INFO ("Iteracion pLlam: " << pLlam);
     // Configurar las curvas de las graficas
