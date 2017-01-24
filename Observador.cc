@@ -65,12 +65,12 @@ void Observador::ActualizaRetardos(Ptr<const Packet> paquete, const Address & di
     // Calcular diferencia de tiempos y almacenar en Average de retardos
     double tiempo = tfinal.GetDouble () - tinicio.GetDouble ();
     NS_LOG_DEBUG ("Retardo paquete " << paquete->GetUid () << ": " << Time (tiempo).GetMicroSeconds () / 1000.0 << "ms");
-    retardos.Update (tiempo);
     // Al haberse hecho uso del elemento, quitarlo de la lista
     tiemposEnvios.erase (indice);
     // Si se cumple que el retardo es menor a 140ms, aumentamos el contador de llamadas correctas
     if(tiempo < RETARDO_MAXIMO_US)
     {
+      retardos.Update (tiempo);
       llamadasCorrectas++;
       NS_LOG_DEBUG("Numero de llamadas que cumplen la condicion de retardo: " << llamadasCorrectas);
     }

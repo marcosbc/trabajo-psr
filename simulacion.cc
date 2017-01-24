@@ -27,7 +27,7 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("Trabajo");
 
 // Descomentar para activar el modo de validacion
-// #define VALIDACION
+#define VALIDACION
 
 // Definicion de requisitos
 #define REQUISITO_LLAM_TASA "64kbps"
@@ -362,13 +362,15 @@ main (int argc, char *argv[])
           << " (" << simul <<  "): "
           << "porcenLlamValidas = " << result.porcenLlamValidas << "%, "
           << "retardoMedioLlam = " << result.retardoMedioLlam.GetMicroSeconds () / 1000.0 << "ms");
+        simul++;
+        porcenLlamValidas.Update (result.porcenLlamValidas);
+        retardoMedioLlam.Update (result.retardoMedioLlam.GetMicroSeconds () / 1000.0);
+        /*
         // TODO comentar
         if (operator< (result.retardoMedioLlam, operator* (Time (REQUISITO_LLAM_RETARDO_MAX), 2)))
         {
-          simul++;
-          porcenLlamValidas.Update (result.porcenLlamValidas);
-          retardoMedioLlam.Update (result.retardoMedioLlam.GetMicroSeconds () / 1000.0);
         }
+        */
       }
       // Calcular el intervalo de confianza
       IC[GRAFICA_CUMPLIM] = IC_PONDERACION * sqrt (porcenLlamValidas.Var () / IC_SIMULACIONES_POR_PUNTO);
