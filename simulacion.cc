@@ -27,6 +27,7 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("Trabajo");
 
 // Descomentar para activar el modo de validacion
+// #define VALIDACION
 
 // Definicion de requisitos
 #define REQUISITO_LLAM_TASA "64kbps"
@@ -49,7 +50,12 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 // TODO Poner valor no nulo
 #define DEFAULT_CLIENTES_PERROR_BIT 0.0
 // Probabilidad de que un cliente realice una llamada durante la simulacion
-#define DEFAULT_CLIENTES_PROB_LLAMADA 0.1
+// Valor final
+#define DEFAULT_CLIENTES_PROB_LLAMADA 1
+// Valor inicial
+#define DEFAULT_CLIENTES_PROB_LLAMADA_INI 0.1
+// Numero de saltos
+#define DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS 3
 
 // Configuracion del escenario
 #define NUM_CENTRALES 2
@@ -72,7 +78,6 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 #define START_TIME "1s"
 #define STOP_TIME "100s"
 
-#define VALIDACION
 // Modo validacion
 #ifdef VALIDACION
 // Para redefinir constantes, eliminar las antiguas
@@ -87,6 +92,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 #undef DEFAULT_CLIENTES_RETARDO
 #undef DEFAULT_CLIENTES_PERROR_BIT
 #undef DEFAULT_CLIENTES_PROB_LLAMADA
+#undef DEFAULT_CLIENTES_PROB_LLAMADA_INI
 // Paquetes
 #undef DEFAULT_TAM_PAQUETE
 // Simulacion
@@ -101,6 +107,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 #define DEFAULT_NUM_CLIENTES 20
 #define DEFAULT_CLIENTES_TASA "100Mbps"
 #define DEFAULT_CLIENTES_PROB_LLAMADA 1.0
+#define DEFAULT_CLIENTES_PROB_LLAMADA_INI 1.0
 #define DEFAULT_CLIENTES_PERROR_BIT 0
 #define DEFAULT_CLIENTES_RETARDO "2ms"
 // Paquetes
@@ -160,6 +167,7 @@ main (int argc, char *argv[])
 
   // Configuracion de escenario
   uint32_t nClientesPorCentral = DEFAULT_NUM_CLIENTES;
+  uint32_t tamCola = DEFAULT_CENTRALES_TAMCOLA;
 
   // Configuracion de clientes
   double clientesProbErrorBit = DEFAULT_CLIENTES_PERROR_BIT;
@@ -167,6 +175,11 @@ main (int argc, char *argv[])
   Time clientesDuracionMediaLlam (DEFAULT_CLIENTES_DURACION_LLAMADA);
   DataRate clientesCapacidadEnlaceMedia (DEFAULT_CLIENTES_TASA);
   Time clientesRetardoMedio (DEFAULT_CLIENTES_RETARDO);
+
+  // Para iterar sobre pLlam
+  double clientesProbLlamRatio =
+    pow ((double) clientesProbLlam / DEFAULT_CLIENTES_PROB_LLAMADA_INI,
+         (double) 1 / (DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS));
 
   // Otras configuraciones
   // Tasa de transmision del protocolo usado
@@ -186,8 +199,6 @@ main (int argc, char *argv[])
                clientesRetardoMedio);
   cmd.AddValue("durLlam", "Duracion media de llamada entre clientes",
                clientesDuracionMediaLlam);
-  cmd.AddValue("pLlam", "Probabilidad de que un cliente realice una llamada en simulacion",
-               clientesProbLlam);
   cmd.AddValue("pError", "Prob. error bit de enlaces de clientes (constante)",
                clientesProbErrorBit);
   cmd.AddValue("tasaVoz", "Tasa del protocolo de llamadas",
@@ -210,10 +221,10 @@ main (int argc, char *argv[])
     << "conex=" << clientesCapacidadEnlaceMedia.GetBitRate () / 1000000.0 << "Mbps "
     << "delay=" << clientesRetardoMedio.GetMicroSeconds () / 1000.0 << "ms "
     << "durLlam=" << clientesDuracionMediaLlam.GetMilliSeconds () / 1000.0 << "s "
-    << "pLlam=" << clientesProbLlam << " "
     << "pError=" << clientesProbErrorBit << " "
     << "tasaVoz=" << protocoloTasa.GetBitRate () / 1000.0 << "kbps "
-    << "tamPkt=" << tamPaquete << "B";
+    << "tamPkt=" << tamPaquete << "B "
+    << "tamCola=" << tamCola;
   NS_LOG_INFO (parametrosEntrada.str ());
 
   // Variables aleatorias para obtener valores unicos por clientes:
@@ -247,9 +258,9 @@ main (int argc, char *argv[])
   //   * Porcent paquetes tx correctamente???
   //   Para las situaciones de baja, normal y alta actividad
   Gnuplot graficas[NUM_GRAFICAS];
-  Gnuplot2dDataset curvas[NUM_GRAFICAS][DEFAULT_CENTRALES_TAMCOLA];
+  Gnuplot2dDataset curvas[NUM_GRAFICAS][DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS + 1];
   std::ostringstream tituloGraficas[NUM_GRAFICAS];
-  std::map<uint32_t, PUNTO_Y> valoresGraficas[NUM_GRAFICAS][DEFAULT_CENTRALES_TAMCOLA];
+  std::map<uint32_t, PUNTO_Y> valoresGraficas[NUM_GRAFICAS][DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS + 1];
   std::map<uint32_t, PUNTO_Y>::iterator iteradorGraficas;
   // Graficas de calculo de numero de clientes
   // 1 - Grafica de % de cumplimiento de llamadas
@@ -278,21 +289,24 @@ main (int argc, char *argv[])
     // Eje Y
     "Retardo medio de paquete (ms)"
   );
-  // Configurar las curvas de las graficas
-  std::ostringstream leyendaCurvas[DEFAULT_CENTRALES_TAMCOLA];
-  for (uint32_t tamCola = 1; tamCola <= DEFAULT_CENTRALES_TAMCOLA; tamCola++) {
-    leyendaCurvas[tamCola - 1] << "tamCola: " << tamCola;
-    for (int idGrafica = 0; idGrafica < NUM_GRAFICAS; idGrafica++) {
-      curvas[idGrafica][tamCola - 1].SetTitle (leyendaCurvas[tamCola - 1].str ());
-      curvas[idGrafica][tamCola - 1].SetStyle (Gnuplot2dDataset::LINES_POINTS);
-      curvas[idGrafica][tamCola - 1].SetErrorBars (Gnuplot2dDataset::Y);
-    }
-  }
-
+  // Almacena leyenda de graficas
+  std::ostringstream leyendaCurvas[DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS + 1];
   // Cada grafica tendra distintas curvas, una por tamanio de cola
   uint32_t numClientes;
-  for (uint32_t tamCola = 1; tamCola <= DEFAULT_CENTRALES_TAMCOLA; tamCola++) {
-    NS_LOG_DEBUG ("Iteracion tamanio de cola: " << tamCola);
+  uint32_t iterPLlam = 0;
+  // Comenzar a iterar y simular
+  for (double pLlam = DEFAULT_CLIENTES_PROB_LLAMADA_INI;
+       pLlam < clientesProbLlam * clientesProbLlamRatio;
+       pLlam *= clientesProbLlamRatio) {
+    NS_LOG_INFO ("Iteracion pLlam: " << pLlam);
+    // Configurar las curvas de las graficas
+    leyendaCurvas[iterPLlam] << "pLlam: " << pLlam;
+    for (int idGrafica = 0; idGrafica < NUM_GRAFICAS; idGrafica++) {
+      curvas[idGrafica][iterPLlam].SetTitle (leyendaCurvas[iterPLlam].str ());
+      curvas[idGrafica][iterPLlam].SetStyle (Gnuplot2dDataset::LINES_POINTS);
+      curvas[idGrafica][iterPLlam].SetErrorBars (Gnuplot2dDataset::Y);
+    }
+    // Decidir el modo de simulacion
     CalculoClientes instanciaCalculoClientes;
     if (modoCalculoClientes) {
       // Configurar el algoritmo de calculo de numero de clientes
@@ -307,7 +321,7 @@ main (int argc, char *argv[])
     // Soportar los dos modos de simulacion: Calculo de clientes optimo y simulacion de clientes
     while ((modoCalculoClientes && ! instanciaCalculoClientes.FoundValue ())
            || (modoSimulacionClientes && numClientes <= nClientesPorCentral)) {
-      NS_LOG_DEBUG ("Iteracion de obtencion de porcenLlamValidas con tamCola: " << tamCola << ", cliente: " << numClientes);
+      NS_LOG_DEBUG ("Iteracion de obtencion de porcenLlamValidas con pLlam: " << pLlam << ", cliente: " << numClientes);
       // Obtener punto e IC segun numero de clientes analizado
       Average<double> porcenLlamValidas;
       Average<double> retardoMedioLlam;
@@ -317,7 +331,7 @@ main (int argc, char *argv[])
         // Ejecutar las simulaciones y obtener los datos
         RESULTADOS_SIMULACION result = simulacion (
           numClientes, clientesCapacidadEnlace, clientesRetardo,
-          durLlamVar, tLlamVar, probLlamVar, clientesProbLlam,
+          durLlamVar, tLlamVar, probLlamVar, pLlam,
           clientesProbErrorBit, protocoloTasa, tamPaquete, tamCola
         );
         contadorSimulaciones++;
@@ -341,7 +355,7 @@ main (int argc, char *argv[])
         porcenLlamValidas.Mean (),
         IC[GRAFICA_CUMPLIM]
       };
-      valoresGraficas[GRAFICA_CUMPLIM][tamCola - 1][numClientes] = valoresGrafCumplim;
+      valoresGraficas[GRAFICA_CUMPLIM][iterPLlam][numClientes] = valoresGrafCumplim;
       NS_LOG_INFO ("Aniadiendo puntos para grafica de cumplimiento de llamadas: "
                    << "(" << numClientes << ", "
                    << porcenLlamValidas.Mean () << ", "
@@ -350,7 +364,7 @@ main (int argc, char *argv[])
         retardoMedioLlam.Mean (),
         IC[GRAFICA_RETARDO]
       };
-      valoresGraficas[GRAFICA_RETARDO][tamCola - 1][numClientes] = valoresGrafRetardo;
+      valoresGraficas[GRAFICA_RETARDO][iterPLlam][numClientes] = valoresGrafRetardo;
       NS_LOG_INFO ("Aniadiendo puntos para grafica de retardo: "
                    << "(" << numClientes << ", "
                    << retardoMedioLlam.Mean () << ", "
@@ -373,15 +387,17 @@ main (int argc, char *argv[])
           // Incumple clientes, volver al valor anterior
           numClientes = instanciaCalculoClientes.ResetValue ();
         }
+        // Fin ejecucion del algoritmo
       } else {
         // Modo de simulacion, incrementar clientes de 10 en 10
         numClientes += AUMENTO_NUM_CLIENTES_POR_ITERACION;
       }
     }
     if (modoCalculoClientes) {
-      NS_LOG_INFO ("Encontrado optimo numero de clientes (tamCola = " << tamCola << "): " << numClientes);
+      NS_LOG_INFO ("Encontrado optimo numero de clientes (pLlam = " << pLlam << "): " << numClientes);
     }
-    // Fin ejecucion del algoritmo
+    // Aumentar el iterador de prob. llamadas, para almacenar graficas
+    iterPLlam++;
   }
   // Fin de recorrido de las curvas
   // Representar el requisito en una linea horizontal
@@ -404,17 +420,19 @@ main (int argc, char *argv[])
   // Crear las graficas e imprimirlas
   for (int idGrafica = 0; idGrafica < NUM_GRAFICAS; idGrafica++) {
     // Primero, aniadir curvas con sus puntos a las graficas
-    for (uint32_t tamCola = 1; tamCola <= DEFAULT_CENTRALES_TAMCOLA; tamCola++) {
+    for (uint32_t iterPLlam = 0;
+         iterPLlam <= DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS;
+         iterPLlam++) {
       // Aniadir puntos a la curva respectiva
-      for (iteradorGraficas = valoresGraficas[idGrafica][tamCola - 1].begin ();
-           iteradorGraficas != valoresGraficas[idGrafica][tamCola - 1].end ();
+      for (iteradorGraficas = valoresGraficas[idGrafica][iterPLlam].begin ();
+           iteradorGraficas != valoresGraficas[idGrafica][iterPLlam].end ();
            iteradorGraficas++) {
-        curvas[idGrafica][tamCola - 1].Add (iteradorGraficas->first,
-                                            (iteradorGraficas->second).mean,
-                                            (iteradorGraficas->second).ic);
+        curvas[idGrafica][iterPLlam].Add (iteradorGraficas->first,
+                                          (iteradorGraficas->second).mean,
+                                          (iteradorGraficas->second).ic);
       }
       // Aniadir curvas a las graficas
-      graficas[idGrafica].AddDataset (curvas [idGrafica][tamCola - 1]);
+      graficas[idGrafica].AddDataset (curvas [idGrafica][iterPLlam]);
     }
     // Creacion del fichero
     std::ostringstream tituloFichero;
