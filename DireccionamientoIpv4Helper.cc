@@ -1,11 +1,13 @@
 /*
- * TITULO: TODO
+ * TITULO:  DireccionamientoIpv4Helper
  * AUTORES:
  * - Desiree Garcia Soriano
  * - Marcos Bjorkelund
  * - Ana Lobon Roldan
  * - Juan Lara Gavira
- * DESCRIPCION: TODO
+ * DESCRIPCION: Clase DireccionamientoIpv4Helper que se encarga de asignar
+ *              las ips y mascara a las diferentes interfaces de las 
+ *              entidades de nuestro sistema.
  */
 
 #include "DireccionamientoIpv4Helper.h"
@@ -13,78 +15,80 @@
 NS_LOG_COMPONENT_DEFINE ("DireccionamientoIpv4Helper");
 
 /*
+// VALIDACION DEL PROPIO FICHERO DIRECCIONAMIENTOIPV4HELPER
+//
 // Inicio de test manual
 #define NUM_CENTRALES 2
 #define NUM_CLIENTES 20
 int
 main(void)
 {
-  uint32_t numClientes = NUM_CLIENTES;
+uint32_t numClientes = NUM_CLIENTES;
 
-  // Creamos centrales
-  NodeContainer centrales;
-  centrales.Create (NUM_CENTRALES);
-  // Definiciones: Enlaces y dispositivos de centrales
-  PointToPointHelper enlacesCentrales;
-  NetDeviceContainer dispositivosCentrales = enlacesCentrales.Install (centrales);
+// Creamos centrales
+NodeContainer centrales;
+centrales.Create (NUM_CENTRALES);
+// Definiciones: Enlaces y dispositivos de centrales
+PointToPointHelper enlacesCentrales;
+NetDeviceContainer dispositivosCentrales = enlacesCentrales.Install (centrales);
 
-  // Creamos clientes
-  NodeContainer clientes[NUM_CENTRALES];
-  // Configurar enlaces y dispositivos con la central (punto a punto)
-  // Notese que en total tendremos 2 * "numClientes" clientes
-  // Cada central tendra "numClientes" clientes (parametro de simulacion ())
-  NodeContainer* paresClienteCentral = new NodeContainer[2 * numClientes];
-  PointToPointHelper* enlacesClienteCentral = new PointToPointHelper[2 * numClientes];
-  NetDeviceContainer* dispClienteCentral = new NetDeviceContainer[2 * numClientes];
-  // La logica de creacion de clientes es la misma en las dos centrales
-  // Recorrer centrales y asociar nuevos nodos
-  for (uint32_t idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
-    clientes[idCentral].Create (numClientes + 1);
-    // Asignar los pares cliente-central
-    // De 0 a n-1 para la central 1, de n a 2n-1 para la central 2
-    for (uint32_t iteradorClientes = 0;
-         iteradorClientes < numClientes;
-         iteradorClientes++) {
-      // Lograr una iteracion desde 0 hasta 2n - 1
-      uint32_t idCliente = iteradorClientes + idCentral * numClientes;
-      // Aniadir central al par cliente-central
-      paresClienteCentral[idCliente].Add (centrales.Get (idCentral));
-      // Lo mismo para clientes (un cliente distinto por par central cliente)
-      paresClienteCentral[idCliente].Add (clientes[idCentral].Get (iteradorClientes));
-      // Instalar los dispositivos en los nodos
-      dispClienteCentral[idCliente] =
-        enlacesClienteCentral[idCliente].Install (paresClienteCentral[idCliente]);
-    }
-  }
+// Creamos clientes
+NodeContainer clientes[NUM_CENTRALES];
+// Configurar enlaces y dispositivos con la central (punto a punto)
+// Notese que en total tendremos 2 * "numClientes" clientes
+// Cada central tendra "numClientes" clientes (parametro de simulacion ())
+NodeContainer* paresClienteCentral = new NodeContainer[2 * numClientes];
+PointToPointHelper* enlacesClienteCentral = new PointToPointHelper[2 * numClientes];
+NetDeviceContainer* dispClienteCentral = new NetDeviceContainer[2 * numClientes];
+// La logica de creacion de clientes es la misma en las dos centrales
+// Recorrer centrales y asociar nuevos nodos
+for (uint32_t idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
+clientes[idCentral].Create (numClientes + 1);
+// Asignar los pares cliente-central
+// De 0 a n-1 para la central 1, de n a 2n-1 para la central 2
+for (uint32_t iteradorClientes = 0;
+iteradorClientes < numClientes;
+iteradorClientes++) {
+// Lograr una iteracion desde 0 hasta 2n - 1
+uint32_t idCliente = iteradorClientes + idCentral * numClientes;
+// Aniadir central al par cliente-central
+paresClienteCentral[idCliente].Add (centrales.Get (idCentral));
+// Lo mismo para clientes (un cliente distinto por par central cliente)
+paresClienteCentral[idCliente].Add (clientes[idCentral].Get (iteradorClientes));
+// Instalar los dispositivos en los nodos
+dispClienteCentral[idCliente] =
+enlacesClienteCentral[idCliente].Install (paresClienteCentral[idCliente]);
+}
+}
 
-  // Configuraciones de red
-  // Instalamos la pila TCP/IP en todos los clientes y centrales
-  InternetStackHelper pilaTcpIp;
-  pilaTcpIp.Install (centrales);
-  for (uint32_t idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
-    pilaTcpIp.Install (clientes[idCentral]);
-  }
-  // Asignamiento de IPs, delegada a una clase
-  DireccionamientoIpv4Helper direcciones;
-  // Incluye subred para centrales
-  Ipv4InterfaceContainer* subredes = new Ipv4InterfaceContainer[2 * numClientes + 1];
-  // Red entre centrales (que es un poco especifica)
-  subredes[0] = direcciones.CreateSubnet (numClientes * 2, dispositivosCentrales);
-  for (uint32_t idCliente = 0; idCliente < 2 * numClientes; idCliente++) {
-    // Notese que la subred #0 es la que conecta las centrales
-    subredes[idCliente + 1] = direcciones.CreateSubnet (idCliente,
-                                                        dispClienteCentral[idCliente]);
-  }
-  // Popular las tablas de enrutamiento, con el fin de que todos los clientes
-  // de una central puedan acceder a los que pertenecen a esta, y tambien a los
-  // clientes de la segunda central
-  Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
-  // Imprimir la estructura de la red
-  NS_LOG_DEBUG (direcciones.ToString ());
-  // Imprimir tablas de reenvio
-  NS_LOG_DEBUG (direcciones.RoutingTables ());
+// Configuraciones de red
+// Instalamos la pila TCP/IP en todos los clientes y centrales
+InternetStackHelper pilaTcpIp;
+pilaTcpIp.Install (centrales);
+for (uint32_t idCentral = 0; idCentral < NUM_CENTRALES; idCentral++) {
+pilaTcpIp.Install (clientes[idCentral]);
+}
+// Asignamiento de IPs, delegada a una clase
+DireccionamientoIpv4Helper direcciones;
+// Incluye subred para centrales
+Ipv4InterfaceContainer* subredes = new Ipv4InterfaceContainer[2 * numClientes + 1];
+// Red entre centrales (que es un poco especifica)
+subredes[0] = direcciones.CreateSubnet (numClientes * 2, dispositivosCentrales);
+for (uint32_t idCliente = 0; idCliente < 2 * numClientes; idCliente++) {
+// Notese que la subred #0 es la que conecta las centrales
+subredes[idCliente + 1] = direcciones.CreateSubnet (idCliente,
+dispClienteCentral[idCliente]);
+}
+// Popular las tablas de enrutamiento, con el fin de que todos los clientes
+// de una central puedan acceder a los que pertenecen a esta, y tambien a los
+// clientes de la segunda central
+Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
+// Imprimir la estructura de la red
+NS_LOG_DEBUG (direcciones.ToString ());
+// Imprimir tablas de reenvio
+NS_LOG_DEBUG (direcciones.RoutingTables ());
 
-  return 0;
+return 0;
 }
 // Fin de test manual
 */
@@ -95,7 +99,7 @@ DireccionamientoIpv4Helper::DireccionamientoIpv4Helper ()
   subredesAsignadas = 0;
   interfacesParNodos.clear ();
 }
-
+// Crea una subred y asigna IPs a los dispositivos conectados
 Ipv4InterfaceContainer
 DireccionamientoIpv4Helper::CreateSubnet (uint32_t idCliente,
                                           NetDeviceContainer dispositivos)
@@ -108,11 +112,11 @@ DireccionamientoIpv4Helper::CreateSubnet (uint32_t idCliente,
   // para obtener las direcciones IP de las subredes
   std::ostringstream ipBase;
   ipBase << IP_BASE
-         // Division por 256 para obtener primer octeto de red
+    // Division por 256 para obtener primer octeto de red
          << "." << subredesAsignadas / 256
-         // Resto de la division para obtener el segundo
+    // Resto de la division para obtener el segundo
          << "." << subredesAsignadas % 256
-         // El ultimo octeto esta reservado para las interfaces
+    // El ultimo octeto esta reservado para las interfaces
          << ".0";
   // Establecer la base
   direcciones.SetBase (Ipv4Address (ipBase.str ().c_str ()), IP_MASK);
@@ -126,7 +130,7 @@ DireccionamientoIpv4Helper::CreateSubnet (uint32_t idCliente,
   // Devolver el contenedor de interfaces de red IPv4
   return interfaces;
 }
-
+ // Imprime la estructura de la red (util para debug)
 std::string
 DireccionamientoIpv4Helper::ToString ()
 {
@@ -144,16 +148,18 @@ DireccionamientoIpv4Helper::ToString ()
   // Imprimir asignacion de IPs de clientes
   result << "Asignacion de IPs de clientes:\n";
   for(iter = interfacesParNodos.begin(); iter != interfacesParNodos.end(); iter++)
-  {
-    // No imprimir el ultimo par (ya que son las interfaces entre centrales)
-    if (iter != centralesIter)
     {
-      result << "* Cliente " << iter->first << ": " << GetIp (iter->first) << "\n";
+      // No imprimir el ultimo par (ya que son las interfaces entre centrales)
+      if (iter != centralesIter)
+      {
+        result << "* Cliente " << iter->first << ": " << GetIp (iter->first) << "\n";
+      }
     }
-  }
   return result.str ();
 }
 
+// Obtener la IP de un determinado cliente, dentro de las subredes asignadas
+// Notese que una llamada requiere que dos clientes esten en la misma llamada
 Ipv4Address
 DireccionamientoIpv4Helper::GetIp (uint32_t idCliente)
 {

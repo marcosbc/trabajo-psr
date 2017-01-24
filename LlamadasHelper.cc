@@ -1,11 +1,13 @@
 /*
- * TITULO: TODO
+ * TITULO: LlamadasHelper
  * AUTORES:
  * - Desiree Garcia Soriano
  * - Marcos Bjorkelund
  * - Ana Lobon Roldan
  * - Juan Lara Gavira
- * DESCRIPCION: TODO
+ * DESCRIPCION: Clase LlamadasHelper que determina el cominezo de una llamada 
+ *              y el establecimiento de la llamada (cliente origen con cliente
+ *              destino).
  */
 
 #include "LlamadasHelper.h"
@@ -15,6 +17,8 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("LlamadasHelper");
 
 /*
+// VALIDACION PROPIA DEL FICHERO LLAMADASHELPER.
+//
 // Inicio de test manual
 #define NUM_CENTRALES 2
 #define NUM_CLIENTES 100
@@ -25,29 +29,29 @@ NS_LOG_COMPONENT_DEFINE ("LlamadasHelper");
 int
 main(void)
 {
-  // Crear variables aleatorias
-  // Duracion de llamada
-  Ptr<ExponentialRandomVariable> duracionLlamadaValores =
-    CreateObject<ExponentialRandomVariable> ();
-  duracionLlamadaValores->SetAttribute ("Mean", DoubleValue (DURACION_LLAM_MEDIA));
-  // Tiempo de inicio de llamada
-  Ptr<UniformRandomVariable> tInicioLlamadaValores =
-    CreateObject<UniformRandomVariable> ();
-  tInicioLlamadaValores->SetAttribute ("Min", DoubleValue (T_START));
-  tInicioLlamadaValores->SetAttribute ("Max", DoubleValue (T_STOP));
-  // Probabilidad de llamada durante la simulacion
-  Ptr<UniformRandomVariable> probLlamadaValores =
-    CreateObject<UniformRandomVariable> ();
-  probLlamadaValores->SetAttribute ("Min", DoubleValue (0));
-  probLlamadaValores->SetAttribute ("Max", DoubleValue (1));
-  // Inicializar el helper
-  LlamadasHelper llamadas (NUM_CLIENTES,
-                           duracionLlamadaValores,
-                           tInicioLlamadaValores,
-                           probLlamadaValores,
-                           PROB_LLAM);
-  NS_LOG_INFO (llamadas.GetAsignacion ());
-  return 0;
+// Crear variables aleatorias
+// Duracion de llamada
+Ptr<ExponentialRandomVariable> duracionLlamadaValores =
+CreateObject<ExponentialRandomVariable> ();
+duracionLlamadaValores->SetAttribute ("Mean", DoubleValue (DURACION_LLAM_MEDIA));
+// Tiempo de inicio de llamada
+Ptr<UniformRandomVariable> tInicioLlamadaValores =
+CreateObject<UniformRandomVariable> ();
+tInicioLlamadaValores->SetAttribute ("Min", DoubleValue (T_START));
+tInicioLlamadaValores->SetAttribute ("Max", DoubleValue (T_STOP));
+// Probabilidad de llamada durante la simulacion
+Ptr<UniformRandomVariable> probLlamadaValores =
+CreateObject<UniformRandomVariable> ();
+probLlamadaValores->SetAttribute ("Min", DoubleValue (0));
+probLlamadaValores->SetAttribute ("Max", DoubleValue (1));
+// Inicializar el helper
+LlamadasHelper llamadas (NUM_CLIENTES,
+duracionLlamadaValores,
+tInicioLlamadaValores,
+probLlamadaValores,
+PROB_LLAM);
+NS_LOG_INFO (llamadas.GetAsignacion ());
+return 0;
 }
 // Fin de test manual
 */
@@ -66,10 +70,10 @@ LlamadasHelper::LlamadasHelper (uint32_t numClientes,
   registroLlamadas.clear ();
   // Reservar espacio para la lista de id de clientes asignados
   for (uint32_t idCliente = 0; idCliente < 2 * numClientes; idCliente++)
-  {
-    // Por defecto no estan asignados
-    clientesAsignados[idCliente] = false;
-  }
+    {
+      // Por defecto no estan asignados
+      clientesAsignados[idCliente] = false;
+    }
   // Asignar llamadas en la variable de registro
   // Notese que "randomIdCliente" genera valores de 0 a 2n - 1,
   // mientras que "idCliente" tendra un valor n
@@ -81,68 +85,70 @@ LlamadasHelper::LlamadasHelper (uint32_t numClientes,
   // Aproximadamente el 50% de sus nodos se comunicaran entre ellos
   paresAsignados = 0;
   while (paresAsignados < numClientes / 4)
-  {
-    idCliente1 = paresAsignados;
-    idCliente2 = (numClientes / 2) - paresAsignados - 1;
-    // Asignar la llamada
-    asignarLlamada (idCliente1,
-                    idCliente2,
-                    duracionLlamadaValores,
-                    tInicioLlamadaValores,
-                    probLlamadaValores,
-                    probLlamadaEnSimulacion);
-    paresAsignados++;
-  }
+    {
+      idCliente1 = paresAsignados;
+      idCliente2 = (numClientes / 2) - paresAsignados - 1;
+      // Asignar la llamada
+      asignarLlamada (idCliente1,
+          idCliente2,
+          duracionLlamadaValores,
+          tInicioLlamadaValores,
+          probLlamadaValores,
+          probLlamadaEnSimulacion);
+      paresAsignados++;
+    }
   // Central 2
   // Aproximadamente el 50% de sus nodos se comunicaran entre ellos
   paresAsignados = 0;
   while (paresAsignados < numClientes / 4)
-  {
-    idCliente1 = (3 * numClientes) / 2 + paresAsignados;
-    idCliente2 = numClientes * 2 - paresAsignados - 1;
-    // Asignar la llamada
-    asignarLlamada (idCliente1,
-                    idCliente2,
-                    duracionLlamadaValores,
-                    tInicioLlamadaValores,
-                    probLlamadaValores,
-                    probLlamadaEnSimulacion);
-    paresAsignados++;
-  }
+    {
+      idCliente1 = (3 * numClientes) / 2 + paresAsignados;
+      idCliente2 = numClientes * 2 - paresAsignados - 1;
+      // Asignar la llamada
+      asignarLlamada (idCliente1,
+          idCliente2,
+          duracionLlamadaValores,
+          tInicioLlamadaValores,
+          probLlamadaValores,
+          probLlamadaEnSimulacion);
+      paresAsignados++;
+    }
   // Asignar el resto a llamada a nodos de distintas centrales
   // Solo para los nodos no asignados aun
   for (idCliente1 = 0; idCliente1 < numClientes * 2; idCliente1++)
-  {
-    // Obtener valor para idCliente1
-    if (clientesAsignados[idCliente1])
     {
-      // Volver a empezar la iteracion
-      continue;
-    }
-    // Obtener valor para idCliente2
-    for (idCliente2 = numClientes * 2 - 1; idCliente2 > 0; idCliente2--)
-    {
-      if (! clientesAsignados[idCliente2])
+      // Obtener valor para idCliente1
+      if (clientesAsignados[idCliente1])
       {
-        // Hemos encontrado un valor correcto, parar el bucle
+        // Volver a empezar la iteracion
+        continue;
+      }
+      // Obtener valor para idCliente2
+      for (idCliente2 = numClientes * 2 - 1; idCliente2 > 0; idCliente2--)
+      {
+        if (! clientesAsignados[idCliente2])
+          {
+            // Hemos encontrado un valor correcto, parar el bucle
+            break;
+          }
+      }
+      // En el caso de que ya esten asignados todos los clientes nos salimos
+      if (clientesAsignados[idCliente1] || clientesAsignados[idCliente2])
+      {
         break;
       }
+      // Asignar la llamada
+      asignarLlamada (idCliente1,
+          idCliente2,
+          duracionLlamadaValores,
+          tInicioLlamadaValores,
+          probLlamadaValores,
+          probLlamadaEnSimulacion);
     }
-    // En el caso de que ya esten asignados todos los clientes nos salimos
-    if (clientesAsignados[idCliente1] || clientesAsignados[idCliente2])
-    {
-      break;
-    }
-    // Asignar la llamada
-    asignarLlamada (idCliente1,
-                    idCliente2,
-                    duracionLlamadaValores,
-                    tInicioLlamadaValores,
-                    probLlamadaValores,
-                    probLlamadaEnSimulacion);
-  }
 }
 
+// Obtener el asignamiento de llamada para clientes
+// Notese que una llamada requiere que dos clientes esten en la misma llamada
 uint32_t
 LlamadasHelper::GetIdDestino (uint32_t idCliente)
 {
@@ -151,6 +157,7 @@ LlamadasHelper::GetIdDestino (uint32_t idCliente)
   return registroLlamadas[idCliente].idDestino;
 }
 
+// Obtener el tiempo absoluto de inicio de llamada
 Time
 LlamadasHelper::GetStartTime (uint32_t idCliente)
 {
@@ -159,6 +166,7 @@ LlamadasHelper::GetStartTime (uint32_t idCliente)
   return registroLlamadas[idCliente].startTime;
 }
 
+// Obtener el tiempo absoluto de fin de llamada
 Time
 LlamadasHelper::GetStopTime (uint32_t idCliente)
 {
@@ -167,6 +175,7 @@ LlamadasHelper::GetStopTime (uint32_t idCliente)
   return registroLlamadas[idCliente].stopTime;
 }
 
+// Obtener en formato cadena la asignacion de nodos
 std::string
 LlamadasHelper::GetAsignacion ()
 {
@@ -175,24 +184,27 @@ LlamadasHelper::GetAsignacion ()
   cadena << "Asignaciones de llamadas:\n";
   // Recorrer todos los elementos en el registro de llamada
   for(iter = registroLlamadas.begin(); iter != registroLlamadas.end(); iter++)
-  {
-    // Imprimir los valores del registro de llamada
-    cadena << "* clienteOrig " << iter->first << ": "
-           << "clienteDest: "<< (iter->second).idDestino << ", "
-           << "inicioLlam: " << (iter->second).startTime.GetMilliSeconds () / 1000.0 << "s, "
-           << "finLlam: " << (iter->second).stopTime.GetMilliSeconds () / 1000.0 << "s"
-           <<  "\n";
-  }
+    {
+      // Imprimir los valores del registro de llamada
+      cadena << "* clienteOrig " << iter->first << ": "
+        << "clienteDest: "<< (iter->second).idDestino << ", "
+        << "inicioLlam: " << (iter->second).startTime.GetMilliSeconds () / 1000.0 << "s, "
+        << "finLlam: " << (iter->second).stopTime.GetMilliSeconds () / 1000.0 << "s"
+        <<  "\n";
+    }
   return cadena.str ();
 }
 
+// Asignar una llamada entre dos clientes
+// Esto crea una entrada para los dos clientes, esten o no en la misma
+// central
 void
 LlamadasHelper::asignarLlamada (uint32_t idCliente1,
                                 uint32_t idCliente2,
-                Ptr<RandomVariableStream> duracionLlamadaValores,
-                Ptr<UniformRandomVariable> tInicioLlamadaValores,
-                Ptr<UniformRandomVariable> probLlamadaValores,
-                double probLlamadaEnSimulacion)
+                                Ptr<RandomVariableStream> duracionLlamadaValores,
+                                Ptr<UniformRandomVariable> tInicioLlamadaValores,
+                                Ptr<UniformRandomVariable> probLlamadaValores,
+                                double probLlamadaEnSimulacion)
 {
   NS_LOG_FUNCTION (idCliente1 << idCliente2
                    << duracionLlamadaValores << tInicioLlamadaValores
@@ -209,7 +221,7 @@ LlamadasHelper::asignarLlamada (uint32_t idCliente1,
     // Asignar los tiempo de inicio y fin
     tInicio = Seconds (tInicioLlamadaValores->GetValue ());
     tFin = operator+ (tInicio,
-                      Seconds (duracionLlamadaValores->GetValue ()));
+    Seconds (duracionLlamadaValores->GetValue ()));
   }
   // Almacenar los nodos en el vector de llamadas asignadas
 

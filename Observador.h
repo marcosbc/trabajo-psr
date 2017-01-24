@@ -1,12 +1,13 @@
 
 /*
- * TITULO: TODO
+ * TITULO: Observador
  * AUTORES:
  * - Desiree Garcia Soriano
  * - Marcos Bjorkelund
  * - Ana Lobon Roldan
  * - Juan Lara Gavira
- * DESCRIPCION: TODO
+ * DESCRIPCION: Definicion de la clase Observador, en el se definen todas las 
+ *              funciones y variables a emplear por dicha clase.
  */
 
 #include <ns3/node.h>
@@ -23,7 +24,7 @@ using namespace ns3;
 
 class Observador : public Application
 {
-public:
+ public:
 
   Observador();
 
@@ -46,7 +47,7 @@ public:
   // vacia, si no lo esta muestra un mensaje tipo Warning
   ~Observador ();
 
-private:
+ private:
 
   // Variables de la clase Observador
 
@@ -59,7 +60,7 @@ private:
   //Estructura que almacena los tiempos de envio de paquetes de todos los nodos
   std::map<uint64_t, Time> tiemposEnvios;
 
-  //Variable que almacena el numero de llamadas correctas
-  uint32_t llamadasCorrectas;
+  //Variable que almacena el numero de paquetes correctos
+  uint32_t paquetesCorrectos;
 
 };

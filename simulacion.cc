@@ -1,11 +1,19 @@
 /*
- * TITULO: TODO
+ * TITULO: Simulacion y representacion de graficas
  * AUTORES:
  * - Desiree Garcia Soriano
  * - Marcos Bjorkelund
  * - Ana Lobon Roldan
  * - Juan Lara Gavira
- * DESCRIPCION: TODO
+ * DESCRIPCION: En dicho fichero se recogen los aspectos fundamentales del codigo, 
+ *              ya que recoge la funcion principal main(donde se representan las 
+ *              graficas tanto de validación como las de la simulación) y la funcion
+ *              simulacion (la cual se encarga de crear el escenario, así como de 
+ *              realizar las llamadas a la clase observador para obtener los valores 
+ *              del porcentaje de llamadas correctas y el retardo para añadirselo a las
+ *              gráficas). Además tambien se definen todas los valores de las variables
+ *              significativas que pose nuestro escenario. 
+ *             
  */
 
 #include <ns3/core-module.h>
@@ -42,7 +50,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 
 // Valores por defecto del los clientes
 // Por defecto se supondra que esta en condiciones normales
-#define DEFAULT_NUM_CLIENTES 100
+#define DEFAULT_NUM_CLIENTES 150
 #define DEFAULT_CLIENTES_TASA "1Mbps"
 #define DEFAULT_CLIENTES_RETARDO "20ms"
 #define DEFAULT_CLIENTES_PERROR_BIT 0.000001
@@ -238,14 +246,14 @@ main (int argc, char *argv[])
     << "tamCola=" << tamCola << " ";
   // En el modo de validacion, la duracion de llamada es la duracion de
   // toda la simulacion
-  #ifdef VALIDACION
+#ifdef VALIDACION
   Time duracionLlam = operator- (Time (STOP_TIME), Time (START_TIME));
   parametrosEntrada
     << "durLlam=" << duracionLlam.GetMilliSeconds () / 1000.0 << "s";
-  #else
+#else
   parametrosEntrada
     << "durLlam=" << clientesDuracionMediaLlam.GetMilliSeconds () / 1000.0 << "s";
-  #endif
+#endif
   NS_LOG_INFO (parametrosEntrada.str ());
 
   // Variables aleatorias para obtener valores unicos por clientes:
@@ -263,9 +271,9 @@ main (int argc, char *argv[])
   // Tiempo de inicio de cada llamada (en segundos)
   Ptr<UniformRandomVariable> tLlamVar = CreateObject<UniformRandomVariable> ();
   tLlamVar->SetAttribute("Min", DoubleValue (
-    Time (START_TIME).GetMilliSeconds () / 1000.0));
+                         Time (START_TIME).GetMilliSeconds () / 1000.0));
   tLlamVar->SetAttribute("Max", DoubleValue (
-    Time (STOP_TIME).GetMilliSeconds () / 1000.0));
+                         Time (STOP_TIME).GetMilliSeconds () / 1000.0));
   // Probabilidad de que se produzca una llamada (en tanto por uno)
   Ptr<UniformRandomVariable> probLlamVar = CreateObject<UniformRandomVariable> ();
   // Usado para comparar con probabilidad de llamada (parametro)
@@ -288,7 +296,7 @@ main (int argc, char *argv[])
   // 1 - Grafica de % de cumplimiento de llamadas
   tituloGraficas[GRAFICA_CUMPLIM]
     << "Numero de clientes por central, "
-    << REQUISITO_PORCEN_LLAM_CORRECTAS << "\% de llamadas validas "
+    << REQUISITO_PORCEN_LLAM_CORRECTAS << "\% de paquetes validos "
     << "(intervalo confianza: " << IC_PORCENTAJE << "%)\\n"
     << parametrosEntrada.str ();
   graficas[GRAFICA_CUMPLIM].SetTitle (tituloGraficas[GRAFICA_CUMPLIM].str ());
@@ -301,7 +309,7 @@ main (int argc, char *argv[])
   // 2 - Grafica de retardos medios
   tituloGraficas[GRAFICA_RETARDO]
     << "Numero de clientes por central, "
-    << REQUISITO_PORCEN_LLAM_CORRECTAS << "\% de llamadas validas "
+    << REQUISITO_PORCEN_LLAM_CORRECTAS << "\% de paquetes validos "
     << "(intervalo confianza: " << IC_PORCENTAJE << "%)\\n"
     << parametrosEntrada.str ();
   graficas[GRAFICA_RETARDO].SetTitle (tituloGraficas[GRAFICA_RETARDO].str ());
@@ -318,9 +326,7 @@ main (int argc, char *argv[])
   // Probabilidades de llamada, una por curva
   double pLlam = DEFAULT_CLIENTES_PROB_LLAMADA_INI;
   // Comenzar a iterar y simular
-  for (uint32_t iterPLlam = 0;
-       iterPLlam < numCurvas;
-       iterPLlam++) {
+  for (uint32_t iterPLlam = 0;iterPLlam < numCurvas; iterPLlam++) {
     duracionMediaLlamada[iterPLlam] =
       pow (2, iterPLlam) * clientesDuracionMediaLlam.GetMilliSeconds () / 1000.0;
     NS_LOG_INFO ("Iteracion pLlam: " << pLlam << ", durLlam: " << duracionMediaLlamada[iterPLlam] << "s");
@@ -328,7 +334,7 @@ main (int argc, char *argv[])
     // del nivel de trafico, por lo que cambiamos su media en este instante
     durLlamVar->SetAttribute("Mean", DoubleValue (duracionMediaLlamada[iterPLlam]));
     // Configurar las curvas de las graficas
-    leyendaCurvas[iterPLlam] << "pLlam: " << pLlam;
+    leyendaCurvas[iterPLlam] << "pLlam: " << pLlam << ", durLlam: " << duracionMediaLlamada[iterPLlam] << "s";
     for (int idGrafica = 0; idGrafica < NUM_GRAFICAS; idGrafica++) {
       curvas[idGrafica][iterPLlam].SetTitle (leyendaCurvas[iterPLlam].str ());
       curvas[idGrafica][iterPLlam].SetStyle (Gnuplot2dDataset::LINES_POINTS);
@@ -349,7 +355,7 @@ main (int argc, char *argv[])
     // Soportar los dos modos de simulacion: Calculo de clientes optimo y simulacion de clientes
     while ((modoCalculoClientes && ! instanciaCalculoClientes.FoundValue ())
            || (modoSimulacionClientes && numClientes <= nClientesPorCentral)) {
-      NS_LOG_DEBUG ("Iteracion de obtencion de porcenLlamValidas con pLlam: " << pLlam << ", cliente: " << numClientes);
+      NS_LOG_DEBUG ("Iteracion de obtencion de porcenPaquetesValidos con pLlam: " << pLlam << ", cliente: " << numClientes);
       // Obtener punto e IC segun numero de clientes analizado
       Average<double> porcenLlamValidas;
       Average<double> retardoMedioLlam;
@@ -360,10 +366,10 @@ main (int argc, char *argv[])
         RESULTADOS_SIMULACION result = simulacion (
           numClientes, durLlamVar, tLlamVar, probLlamVar, pLlam,
           clientesProbErrorBit, protocoloTasa, tamPaquete, tamCola
-        );
+         );
         NS_LOG_DEBUG ("Resultado simulacion " << contadorSimulaciones
           << " (" << simul <<  "): "
-          << "porcenLlamValidas = " << result.porcenLlamValidas << "%, "
+          << "porcenPaquetesValidos = " << result.porcenLlamValidas << "%, "
           << "retardoMedioLlam = " << result.retardoMedioLlam.GetMicroSeconds () / 1000.0 << "ms");
         // Aniadir valores obtenidos al Average correspondiente
         porcenLlamValidas.Update (result.porcenLlamValidas);
@@ -398,7 +404,7 @@ main (int argc, char *argv[])
         numClientesMax = numClientes;
       }
       NS_LOG_DEBUG ("Valores medios con " << numClientesMax << " clientes: "
-                    << "porcenLlamValidas: " << porcenLlamValidas.Mean () << ", "
+                    << "porcenPAquetesValidos: " << porcenLlamValidas.Mean () << ", "
                     << "retardoMedioLlam: " << retardoMedioLlam.Mean ());
       if (modoCalculoClientes) {
         // Esta parte se dedica a especificamente a ejecutar el algoritmo
@@ -550,14 +556,14 @@ simulacion (
       paresClienteCentral[idCliente].Add (clientes[idCentral].Get (iteradorClientes));
       // Configurar los parametros del enlace: Tasa, retardo y errores
       enlacesClienteCentral[idCliente].SetDeviceAttribute ("DataRate",
-        DataRateValue (DataRate (DEFAULT_CLIENTES_TASA)));
+          DataRateValue (DataRate (DEFAULT_CLIENTES_TASA)));
       enlacesClienteCentral[idCliente].SetChannelAttribute ("Delay",
-        TimeValue (Time (DEFAULT_CLIENTES_RETARDO)));
+          TimeValue (Time (DEFAULT_CLIENTES_RETARDO)));
       enlacesClienteCentral[idCliente].SetDeviceAttribute ("ReceiveErrorModel",
-        PointerValue (pErrorClienteCentral));
+          PointerValue (pErrorClienteCentral));
       // Instalar los dispositivos en los nodos
       dispClienteCentral[idCliente] =
-        enlacesClienteCentral[idCliente].Install (paresClienteCentral[idCliente]);
+          enlacesClienteCentral[idCliente].Install (paresClienteCentral[idCliente]);
     }
   }
   // Fin recorrido de centrales
@@ -665,12 +671,12 @@ simulacion (
       // Establecer los tiempos de inicio y final de cada llamada
       Time llamStartTime = llamadas.GetStartTime (idClienteTotal);
       Time llamStopTime = llamadas.GetStopTime (idClienteTotal);
-      #ifdef VALIDACION
+#ifdef VALIDACION
       // En el modo de validacion, las llamadas duraran desde el principio
       // de la simulacion, hasta el final de esta
       llamStartTime = Time (START_TIME);
       llamStopTime = Time (STOP_TIME);
-      #endif
+#endif
       appsLlam[idClienteTotal].Start (llamStartTime);
       appsLlam[idClienteTotal].Stop (llamStopTime);
       // Asociar las trazas de recepcion de todos los sumideros

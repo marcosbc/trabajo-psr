@@ -1,11 +1,13 @@
 /*
- * TITULO: TODO
+ * TITULO: DireccionamientoIpv4Helper
  * AUTORES:
  * - Desiree Garcia Soriano
  * - Marcos Bjorkelund
  * - Ana Lobon Roldan
  * - Juan Lara Gavira
- * DESCRIPCION: TODO
+ * DESCRIPCION: Definicion de la clase  DireccionamientoIpv4Helper, 
+ *              que contiene todas las funciones y variables 
+ *              principales empleadas en dicha clase.
  */
 
 #include <ns3/core-module.h>
@@ -23,7 +25,7 @@ using namespace ns3;
 
 class DireccionamientoIpv4Helper
 {
-public:
+ public:
   // Inicializar valores de atributos
   DireccionamientoIpv4Helper ();
   // Crea una subred y asigna IPs a los dispositivos conectados
@@ -34,7 +36,7 @@ public:
   // Obtener la IP de un determinado cliente, dentro de las subredes asignadas
   // Notese que una llamada requiere que dos clientes esten en la misma llamada
   Ipv4Address GetIp (uint32_t idCliente);
-private:
+ private:
   // Almacena el numero de subredes almacenadas, para asignamiento de nuevas subredes
   uint16_t subredesAsignadas;
   // Almacena la relacion "idCliente" - interfaces

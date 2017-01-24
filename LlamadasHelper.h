@@ -1,11 +1,13 @@
 /*
- * TITULO: TODO
+ * TITULO: LlamadasHelper
  * AUTORES:
  * - Desiree Garcia Soriano
  * - Marcos Bjorkelund
  * - Ana Lobon Roldan
  * - Juan Lara Gavira
- * DESCRIPCION: TODO
+ * DESCRIPCION: Definicion de la clase LlamadasHelper en donde se definen
+ *              todas las funciones y variables principales que emplea 
+ *              dicha clase.
  */
 
 #include <ns3/core-module.h>
@@ -13,6 +15,7 @@
 
 using namespace ns3;
 
+//Estructura con los datos de la llamada.
 typedef struct {
   // Identificador de cliente destino
   uint32_t idDestino;
@@ -24,7 +27,7 @@ typedef struct {
 
 class LlamadasHelper
 {
-public:
+ public:
   // Constructor: Crea una tabla de asignamiento de llamadas para clientes
   LlamadasHelper (uint32_t numClientes,
                   Ptr<RandomVariableStream> duracionLlamadaValores,
@@ -40,7 +43,7 @@ public:
   Time GetStopTime (uint32_t idCliente);
   // Obtener en formato cadena la asignacion de nodos
   std::string GetAsignacion ();
-private:
+ private:
   // Almacena la lista de nodos con llamada ya asignada
   std::map<uint32_t, bool> clientesAsignados;
   // Almacena las llamadas en curso, por cliente
