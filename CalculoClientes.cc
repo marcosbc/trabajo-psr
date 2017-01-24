@@ -14,7 +14,7 @@
 NS_LOG_COMPONENT_DEFINE ("CalculoClientes");
 
 /*
-// VALIDACION PROPIA DEL FICHERO CALCULACLIENTES
+// VERIFICACION PROPIA DEL FICHERO CALCULACLIENTES
 //
 // Inicio de test manual
 // Se ha implementado una funcionalidad para probar el algoritmo de calculo
@@ -25,31 +25,31 @@ NS_LOG_COMPONENT_DEFINE ("CalculoClientes");
 #define REQUISITO_TASA_LLAM "64Kbps"
 bool
 cumpleRequisitos (uint32_t numClientes) {
-NS_LOG_FUNCTION (numClientes);
-if (numClientes > NUM_CLIENTES_TEST) {
-return false;
-}
-return true;
+  NS_LOG_FUNCTION (numClientes);
+  if (numClientes > NUM_CLIENTES_TEST) {
+    return false;
+  }
+  return true;
 }
 int
 main (void)
 {
-CalculoClientes instanciaCalculoClientes (
-DEFAULT_TASA_CENTRALES, REQUISITO_TASA_LLAM
-);
-uint32_t maxNumClientes = instanciaCalculoClientes.GetInitialValue ();
-while (! instanciaCalculoClientes.FoundValue ()) {
-NS_LOG_DEBUG ("Iteracion: " << maxNumClientes << " clientes");
-if (cumpleRequisitos (maxNumClientes)) {
-NS_LOG_DEBUG ("Cumplimiento de requisitos con " << maxNumClientes << " clientes");
-maxNumClientes = instanciaCalculoClientes.GetValue ();
-} else {
-NS_LOG_DEBUG ("No se cumplen los requisitos con " << maxNumClientes << " clientes");
-// Incumple nodos, volver al valor anterior
-maxNumClientes = instanciaCalculoClientes.ResetValue ();
-}
-}
-return 0;
+  CalculoClientes instanciaCalculoClientes (
+    DEFAULT_TASA_CENTRALES, REQUISITO_TASA_LLAM
+  );
+  uint32_t maxNumClientes = instanciaCalculoClientes.GetInitialValue ();
+  while (! instanciaCalculoClientes.FoundValue ()) {
+    NS_LOG_DEBUG ("Iteracion: " << maxNumClientes << " clientes");
+    if (cumpleRequisitos (maxNumClientes)) {
+      NS_LOG_DEBUG ("Cumplimiento de requisitos con " << maxNumClientes << " clientes");
+      maxNumClientes = instanciaCalculoClientes.GetValue ();
+    } else {
+      NS_LOG_DEBUG ("No se cumplen los requisitos con " << maxNumClientes << " clientes");
+      // Incumple nodos, volver al valor anterior
+      maxNumClientes = instanciaCalculoClientes.ResetValue ();
+    }
+  }
+  return 0;
 }
 // Fin de test manual
 */
