@@ -39,10 +39,10 @@ public:
   //Funcion que devuelve la media de los paquetes correctos
   double GetMediaCorrectos ();
 
-  //Funcion que compueba si la estructura esta vacia o no
-  void CompruebaEstructura ();
-
-
+  // Deconstructor de la clase: Comprobaciones finales
+  // En este caso se comprueba si la estructura de tiempos de envio esta
+  // vacia, si no lo esta muestra un mensaje tipo Warning
+  ~Observador ();
 
 private:
 

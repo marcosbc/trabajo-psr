@@ -37,7 +37,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 // Valores por defecto del escenario
 #define DEFAULT_CENTRALES_TASA "1Mbps" // Tasa de transmision entre centrales
 #define DEFAULT_CENTRALES_RETARDO "2ms" // Retardo entre centrales
-#define DEFAULT_CENTRALES_PERROR_BIT 0.000005 // Prob. error de bit entre centrales
+#define DEFAULT_CENTRALES_PERROR_BIT 0.000001 // Prob. error de bit entre centrales
 #define DEFAULT_CENTRALES_TAMCOLA 3
 
 // Valores por defecto del los clientes
@@ -46,7 +46,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 #define DEFAULT_CLIENTES_TASA "1Mbps"
 #define DEFAULT_CLIENTES_RETARDO "20ms"
 #define DEFAULT_CLIENTES_DURACION_LLAMADA "30s"
-#define DEFAULT_CLIENTES_PERROR_BIT 0.00001
+#define DEFAULT_CLIENTES_PERROR_BIT 0.000001
 // Probabilidad de que un cliente realice una llamada durante la simulacion
 // Valor final
 #define DEFAULT_CLIENTES_PROB_LLAMADA 1
@@ -349,7 +349,7 @@ main (int argc, char *argv[])
       Average<double> porcenLlamValidas;
       Average<double> retardoMedioLlam;
       double IC[NUM_GRAFICAS];
-      for (int simul = 0; simul < IC_SIMULACIONES_POR_PUNTO;) {
+      for (int simul = 0; simul < IC_SIMULACIONES_POR_PUNTO; simul++) {
         NS_LOG_DEBUG ("Iteracion IC: " << simul);
         // Ejecutar las simulaciones y obtener los datos
         RESULTADOS_SIMULACION result = simulacion (
@@ -357,20 +357,15 @@ main (int argc, char *argv[])
           durLlamVar, tLlamVar, probLlamVar, pLlam,
           clientesProbErrorBit, protocoloTasa, tamPaquete, tamCola
         );
-        contadorSimulaciones++;
         NS_LOG_DEBUG ("Resultado simulacion " << contadorSimulaciones
           << " (" << simul <<  "): "
           << "porcenLlamValidas = " << result.porcenLlamValidas << "%, "
           << "retardoMedioLlam = " << result.retardoMedioLlam.GetMicroSeconds () / 1000.0 << "ms");
-        simul++;
+        // Aniadir valores obtenidos al Average correspondiente
         porcenLlamValidas.Update (result.porcenLlamValidas);
         retardoMedioLlam.Update (result.retardoMedioLlam.GetMicroSeconds () / 1000.0);
-        /*
-        // TODO comentar
-        if (operator< (result.retardoMedioLlam, operator* (Time (REQUISITO_LLAM_RETARDO_MAX), 2)))
-        {
-        }
-        */
+        // Variable usada exclusivamente para informacion de debug
+        contadorSimulaciones++;
       }
       // Calcular el intervalo de confianza
       IC[GRAFICA_CUMPLIM] = IC_PONDERACION * sqrt (porcenLlamValidas.Var () / IC_SIMULACIONES_POR_PUNTO);
@@ -470,7 +465,7 @@ main (int argc, char *argv[])
   }
 
   // Informacion de debug sobre los resultados
-  NS_LOG_DEBUG (
+  NS_LOG_INFO (
     "RESULTADOS GLOBALES DE LAS SIMULACIONES\n"
     << "* Numero de simulaciones: " << contadorSimulaciones << "\n"
     << "* Numero de clientes maximo simulado: " << numClientesMax

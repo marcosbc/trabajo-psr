@@ -23,6 +23,7 @@ NS_LOG_COMPONENT_DEFINE ("Observador");
 
 Observador::Observador()
 {
+  NS_LOG_FUNCTION_NOARGS ();
   // Inicializamos a 0 todos los contadores
   numPaquetesEnviados = 0;
   llamadasCorrectas = 0;
@@ -123,8 +124,9 @@ double Observador::GetMediaCorrectos()
   return 100 * mediaCorrectos;
 }
 
-// Funcion que compueba si la estructura esta vacia o no
-void Observador::CompruebaEstructura ()
+// Funcion que, al finalizar una simulacion, compueba si la estructura esta
+// vacia o no
+Observador::~Observador ()
 {
   NS_LOG_FUNCTION_NOARGS ();
   NS_LOG_DEBUG ("Tamanio de la estructura: " << tiemposEnvios.size ());
