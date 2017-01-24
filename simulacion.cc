@@ -208,10 +208,6 @@ main (int argc, char *argv[])
                modoCalculoClientes);
   cmd.AddValue("nClientesPorCentral", "Numero de clientes por central",
                nClientesPorCentral);
-  cmd.AddValue("conex", "Velocidad de conexion media de clientes",
-               clientesCapacidadEnlaceMedia);
-  cmd.AddValue("delay", "Retardo medio en los clientes",
-               clientesRetardoMedio);
   cmd.AddValue("durLlam", "Duracion media de llamada entre clientes",
                clientesDuracionMediaLlam);
   cmd.AddValue("pError", "Prob. error bit de enlaces de clientes (constante)",
