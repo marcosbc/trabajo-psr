@@ -85,8 +85,6 @@ uint32_t numClientes = NUM_CLIENTES;
  Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
  // Imprimir la estructura de la red
  NS_LOG_DEBUG (direcciones.ToString ());
- // Imprimir tablas de reenvio
- NS_LOG_DEBUG (direcciones.RoutingTables ());
 
  return 0;
 }
