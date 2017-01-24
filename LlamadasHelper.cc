@@ -29,29 +29,29 @@ NS_LOG_COMPONENT_DEFINE ("LlamadasHelper");
 int
 main(void)
 {
-// Crear variables aleatorias
-// Duracion de llamada
-Ptr<ExponentialRandomVariable> duracionLlamadaValores =
-CreateObject<ExponentialRandomVariable> ();
-duracionLlamadaValores->SetAttribute ("Mean", DoubleValue (DURACION_LLAM_MEDIA));
-// Tiempo de inicio de llamada
-Ptr<UniformRandomVariable> tInicioLlamadaValores =
-CreateObject<UniformRandomVariable> ();
-tInicioLlamadaValores->SetAttribute ("Min", DoubleValue (T_START));
-tInicioLlamadaValores->SetAttribute ("Max", DoubleValue (T_STOP));
-// Probabilidad de llamada durante la simulacion
-Ptr<UniformRandomVariable> probLlamadaValores =
-CreateObject<UniformRandomVariable> ();
-probLlamadaValores->SetAttribute ("Min", DoubleValue (0));
-probLlamadaValores->SetAttribute ("Max", DoubleValue (1));
-// Inicializar el helper
-LlamadasHelper llamadas (NUM_CLIENTES,
-duracionLlamadaValores,
-tInicioLlamadaValores,
-probLlamadaValores,
-PROB_LLAM);
-NS_LOG_INFO (llamadas.GetAsignacion ());
-return 0;
+  // Crear variables aleatorias
+  // Duracion de llamada
+  Ptr<ExponentialRandomVariable> duracionLlamadaValores =
+    CreateObject<ExponentialRandomVariable> ();
+  duracionLlamadaValores->SetAttribute ("Mean", DoubleValue (DURACION_LLAM_MEDIA));
+  // Tiempo de inicio de llamada
+  Ptr<UniformRandomVariable> tInicioLlamadaValores =
+    CreateObject<UniformRandomVariable> ();
+  tInicioLlamadaValores->SetAttribute ("Min", DoubleValue (T_START));
+  tInicioLlamadaValores->SetAttribute ("Max", DoubleValue (T_STOP));
+  // Probabilidad de llamada durante la simulacion
+  Ptr<UniformRandomVariable> probLlamadaValores =
+    CreateObject<UniformRandomVariable> ();
+  probLlamadaValores->SetAttribute ("Min", DoubleValue (0));
+  probLlamadaValores->SetAttribute ("Max", DoubleValue (1));
+  // Inicializar el helper
+  LlamadasHelper llamadas (NUM_CLIENTES,
+			   duracionLlamadaValores,
+			   tInicioLlamadaValores,
+			   probLlamadaValores,
+			   PROB_LLAM);
+  NS_LOG_INFO (llamadas.GetAsignacion ());
+  return 0;
 }
 // Fin de test manual
 */
