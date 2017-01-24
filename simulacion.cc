@@ -36,26 +36,26 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 
 // Valores por defecto del escenario
 #define DEFAULT_CENTRALES_TASA "1Mbps" // Tasa de transmision entre centrales
-#define DEFAULT_CENTRALES_RETARDO "10ms" // Retardo entre centrales
+#define DEFAULT_CENTRALES_RETARDO "2ms" // Retardo entre centrales
 // TODO Poner valor no nulo
-#define DEFAULT_CENTRALES_PERROR_BIT 0.0 // Prob. error de bit entre centrales
-#define DEFAULT_CENTRALES_TAMCOLA 2
+#define DEFAULT_CENTRALES_PERROR_BIT 0.00001 // Prob. error de bit entre centrales
+#define DEFAULT_CENTRALES_TAMCOLA 3
 
 // Valores por defecto del los clientes
 // Por defecto se supondra que esta en condiciones normales
-#define DEFAULT_NUM_CLIENTES 100
+#define DEFAULT_NUM_CLIENTES 250
 #define DEFAULT_CLIENTES_TASA "1Mbps"
-#define DEFAULT_CLIENTES_RETARDO "2ms"
-#define DEFAULT_CLIENTES_DURACION_LLAMADA "5s"
+#define DEFAULT_CLIENTES_RETARDO "20ms"
+#define DEFAULT_CLIENTES_DURACION_LLAMADA "30s"
 // TODO Poner valor no nulo
-#define DEFAULT_CLIENTES_PERROR_BIT 0.0
+#define DEFAULT_CLIENTES_PERROR_BIT 0.00001
 // Probabilidad de que un cliente realice una llamada durante la simulacion
 // Valor final
 #define DEFAULT_CLIENTES_PROB_LLAMADA 1
 // Valor inicial
 #define DEFAULT_CLIENTES_PROB_LLAMADA_INI 0.1
 // Numero de saltos
-#define DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS 3
+#define DEFAULT_CLIENTES_PROB_LLAMADA_SALTOS 2
 
 // Configuracion del escenario
 #define NUM_CENTRALES 2
@@ -76,7 +76,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 
 // Configuracion de simulacion (en segundos)
 #define START_TIME "1s"
-#define STOP_TIME "100s"
+#define STOP_TIME "200s"
 
 // Modo validacion
 #ifdef VALIDACION
@@ -84,6 +84,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 // Escenario
 #undef DEFAULT_CENTRALES_TASA
 #undef DEFAULT_CENTRALES_RETARDO
+#undef DEFAULT_CENTRALES_PERROR_BIT
 #undef DEFAULT_CENTRALES_TAMCOLA
 #undef AUMENTO_NUM_CLIENTES_POR_ITERACION
 // Clientes
@@ -101,6 +102,7 @@ NS_LOG_COMPONENT_DEFINE ("Trabajo");
 // Escenario
 #define DEFAULT_CENTRALES_TASA "1536kbps"
 #define DEFAULT_CENTRALES_RETARDO "1ms"
+#define DEFAULT_CENTRALES_PERROR_BIT 0
 #define DEFAULT_CENTRALES_TAMCOLA 1
 #define AUMENTO_NUM_CLIENTES_POR_ITERACION 4
 // Clientes
@@ -664,8 +666,6 @@ simulacion (
   NS_LOG_DEBUG ("Ejecutando simulacion");
   // Activar la impresion de paquetes, para poder usar Packet::Print ()
   ns3::Packet::EnablePrinting ();
-  // La simulacion debe parar en STOP_TIME
-  // Simulator::Stop (Time (STOP_TIME));
   // Lanzamos la simulacion
   Simulator::Run ();
   Simulator::Destroy ();
