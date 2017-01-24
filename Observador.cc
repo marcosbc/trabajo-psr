@@ -74,7 +74,7 @@ void Observador::ActualizaRetardos(Ptr<const Packet> paquete, const Address & di
       {
         retardos.Update (tiempo);
         paquetesCorrectos++;
-        NS_LOG_DEBUG("Numero de llamadas que cumplen la condicion de retardo: " << llamadasCorrectas);
+        NS_LOG_DEBUG("Numero de llamadas que cumplen la condicion de retardo: " << paquetesCorrectos);
       }
     }
   else

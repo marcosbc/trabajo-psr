@@ -13,7 +13,7 @@
  *              del porcentaje de llamadas correctas y el retardo para añadirselo a las
  *              gráficas). Además tambien se definen todas los valores de las variables
  *              significativas que pose nuestro escenario. 
- *             
+ *
  */
 
 #include <ns3/core-module.h>
@@ -244,16 +244,6 @@ main (int argc, char *argv[])
     << "tasaVoz=" << protocoloTasa.GetBitRate () / 1000.0 << "kbps "
     << "tamPkt=" << tamPaquete << "B "
     << "tamCola=" << tamCola << " ";
-  // En el modo de validacion, la duracion de llamada es la duracion de
-  // toda la simulacion
-#ifdef VALIDACION
-  Time duracionLlam = operator- (Time (STOP_TIME), Time (START_TIME));
-  parametrosEntrada
-    << "durLlam=" << duracionLlam.GetMilliSeconds () / 1000.0 << "s";
-#else
-  parametrosEntrada
-    << "durLlam=" << clientesDuracionMediaLlam.GetMilliSeconds () / 1000.0 << "s";
-#endif
   NS_LOG_INFO (parametrosEntrada.str ());
 
   // Variables aleatorias para obtener valores unicos por clientes:
@@ -304,7 +294,7 @@ main (int argc, char *argv[])
     // Eje X
     "Numero de clientes por central ",
     // Eje Y
-    "Porcentaje de mensajes de voz validos (%)"
+    "Porcentaje de paquetes validos (%)"
   );
   // 2 - Grafica de retardos medios
   tituloGraficas[GRAFICA_RETARDO]
@@ -327,8 +317,15 @@ main (int argc, char *argv[])
   double pLlam = DEFAULT_CLIENTES_PROB_LLAMADA_INI;
   // Comenzar a iterar y simular
   for (uint32_t iterPLlam = 0;iterPLlam < numCurvas; iterPLlam++) {
+    // En el modo de validacion, la duracion de llamada es la duracion de
+    // toda la simulacion
+    #ifdef VALIDACION
+    Time duracionLlam = operator- (Time (STOP_TIME), Time (START_TIME));
+    duracionMediaLlamada[iterPLlam] = duracionLlam.GetMilliSeconds () / 1000.0;
+    #else
     duracionMediaLlamada[iterPLlam] =
       pow (2, iterPLlam) * clientesDuracionMediaLlam.GetMilliSeconds () / 1000.0;
+    #endif
     NS_LOG_INFO ("Iteracion pLlam: " << pLlam << ", durLlam: " << duracionMediaLlamada[iterPLlam] << "s");
     // Como se ha especificado anteriormente, la duracion media de llamadas depende
     // del nivel de trafico, por lo que cambiamos su media en este instante
